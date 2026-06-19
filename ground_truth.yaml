@@ -1,0 +1,314 @@
+# ============================================================
+# CloudPath Layer 1 — Synthetic Evaluation Ground Truth
+# ============================================================
+#
+# This file is the AUTHORITATIVE specification of what the engine
+# SHOULD detect in the controlled test environment.
+#
+# It serves three purposes:
+#   1. Documentation of the planted misconfigurations
+#   2. Input to security_test.py for automated metrics computation
+#   3. Reference for the report's "Methodology" section
+#
+# Format notes:
+#   - Each `planted_misconfiguration` block represents ONE deliberate
+#     security flaw introduced into the cloud accounts.
+#   - Each `expected_attack_path` block represents an attack scenario
+#     a security expert would expect the engine to surface.
+#   - Match criteria: a detection is considered a True Positive (TP) if
+#     it has the same MITRE technique_id AND the same target node_id as
+#     a planted misconfiguration. Same for path matches.
+#
+# Last validated: 2026-06-14 against engine.py v8 (3-path output)
+
+# ------------------------------------------------------------
+# PART 1: Planted Misconfigurations
+# ------------------------------------------------------------
+# These are the deliberate flaws introduced into AWS Account B
+# (773280493073) and GCP project (cloudpath-fyp). The detection
+# engine should find ALL of them. Any one missed = a False Negative.
+
+planted_misconfigurations:
+  # --- AWS planted misconfigurations ---
+  - id: aws_public_ec2
+    cloud: aws
+    technique: T1190
+    tactic: Initial Access
+    severity: High
+    resource_type: EC2Instance
+    node_id: i-05ad7de68bca8ff2b
+    description: >
+      EC2 instance with attached security group allowing TCP/22 from
+      0.0.0.0/0. Represents the standard "open SSH to the internet"
+      misconfiguration that allows initial access via brute force or
+      known credentials.
+    mitre_reference: https://attack.mitre.org/techniques/T1190/
+    # Baseline tool coverage (verified from real Prowler output 2026-06-15)
+    prowler_check_ids:
+      - ec2_instance_port_ssh_exposed_to_internet
+    cartography_required_labels:
+      - EC2Instance
+      - EC2SecurityGroup
+      - IpPermissionInbound
+    baseline_caught_by:
+      prowler: true
+      cartography: true   # Cartography ingests the resources; doesn't reason about them
+
+  - id: aws_overprivileged_role
+    cloud: aws
+    technique: T1078
+    tactic: Privilege Escalation
+    severity: High
+    resource_type: EC2Instance
+    node_id: i-05ad7de68bca8ff2b
+    description: >
+      EC2 instance has an instance profile attached to an IAM role with
+      AWS-managed AdministratorAccess policy AND a custom inline policy
+      granting secrets:GetSecretValue on the cross-cloud secret. A
+      compromised instance escalates instantly to full account access.
+    mitre_reference: https://attack.mitre.org/techniques/T1078/004/
+    prowler_check_ids:
+      - iam_role_administratoraccess_policy
+    cartography_required_labels:
+      - AWSRole
+      - AWSPolicy
+      - AWSInstanceProfile
+    baseline_caught_by:
+      prowler: true
+      cartography: true
+
+  - id: aws_cross_cloud_secret
+    cloud: aws
+    technique: T1552
+    tactic: Credential Access
+    severity: Critical
+    resource_type: SecretsManagerSecret
+    node_id: arn:aws:secretsmanager:us-east-1:773280493073:secret:gcp-service-account-key-OKibqb
+    description: >
+      AWS Secrets Manager secret containing a GCP service account JSON
+      key. Readable by the over-privileged IAM role. Establishes a
+      credential bridge from AWS to GCP — compromise of AWS reaches
+      GCP without exploiting a separate GCP vulnerability.
+    mitre_reference: https://attack.mitre.org/techniques/T1552/
+    # CRITICAL: Prowler emits ZERO checks against this secret in your
+    # output. This is the headline "Prowler miss" — no compliance check
+    # exists for "this secret bridges clouds". CloudPath's relationship-
+    # aware analysis is required to surface it.
+    prowler_check_ids: []   # verified empty in real output
+    cartography_required_labels:
+      - SecretsManagerSecret
+    baseline_caught_by:
+      prowler: false
+      cartography: true   # Node is ingested but relationship not surfaced
+
+  - id: aws_public_s3
+    cloud: aws
+    technique: T1530
+    tactic: Impact
+    severity: High
+    resource_type: S3Bucket
+    node_id: s3-misconfiguration
+    description: >
+      S3 bucket with a policy statement granting s3:GetObject to
+      Principal "*" (wildcard). Public read of all objects without
+      authentication. Final stage of an AWS data-exfiltration chain.
+    mitre_reference: https://attack.mitre.org/techniques/T1530/
+    prowler_check_ids:
+      - s3_bucket_public_access
+      - s3_bucket_policy_public_write_access
+      - s3_bucket_public_list_acl
+    cartography_required_labels:
+      - S3Bucket
+      - S3PolicyStatement
+    baseline_caught_by:
+      prowler: true
+      cartography: true
+
+  # --- GCP planted misconfigurations ---
+  - id: gcp_public_vm
+    cloud: gcp
+    technique: T1190
+    tactic: Initial Access
+    severity: High
+    resource_type: GCPInstance
+    node_id: fw-misconfiguration
+    description: >
+      GCP VM with a VPC firewall rule (fw-misconfig-open-ssh) allowing
+      TCP/22 from 0.0.0.0/0. Direct equivalent of the AWS open-SSH
+      scenario but on Google Cloud Compute Engine.
+    mitre_reference: https://attack.mitre.org/techniques/T1190/
+    prowler_check_ids:
+      - compute_firewall_ssh_access_from_the_internet_allowed
+    # Prowler anchors this check on the firewall (UID 798350658608000880,
+    # name 'fw-misconfig-open-ssh'), not on the VM. Listed here so the
+    # baseline matcher gives Prowler credit for catching the related
+    # resource even though CloudPath anchors its detection on the VM.
+    prowler_related_uids:
+      - "798350658608000880"
+      - fw-misconfig-open-ssh
+    cartography_required_labels:
+      - GCPInstance
+      - GCPFirewall
+    baseline_caught_by:
+      prowler: true   # Caught via the firewall resource (Path A matching)
+      cartography: false
+
+  - id: gcp_overprivileged_vm
+    cloud: gcp
+    technique: T1078
+    tactic: Privilege Escalation
+    severity: High
+    resource_type: GCPInstance
+    node_id: fw-misconfiguration
+    description: >
+      VM runs under a service account bound to the project-wide
+      "roles/editor" role. Compromise of the VM yields broad write
+      access across the GCP project, including bucket and IAM control.
+    mitre_reference: https://attack.mitre.org/techniques/T1078/004/
+    # No Prowler check fires on this specific binding. Prowler does have
+    # general SA-permissions checks but none of them flag THIS resource
+    # in our output. CloudPath catches it via the YAML rule pattern
+    # matching SAs with roles/editor|owner|*Admin attached.
+    prowler_check_ids: []   # verified empty in real output
+    cartography_required_labels:
+      - GCPInstance
+      - GCPServiceAccount
+      - GCPRole
+    baseline_caught_by:
+      prowler: false
+      cartography: true
+
+  - id: gcp_public_bucket
+    cloud: gcp
+    technique: T1530
+    tactic: Impact
+    severity: High
+    resource_type: GCPBucket
+    node_id: cloudpath-public-bucket-1
+    description: >
+      GCS bucket with an IAM binding granting roles/storage.objectViewer
+      to "allUsers". Anyone on the internet can list and read objects.
+      GCP-side counterpart to the public S3 bucket.
+    mitre_reference: https://attack.mitre.org/techniques/T1530/
+    prowler_check_ids:
+      - cloudstorage_bucket_public_access
+    cartography_required_labels:
+      - GCPBucket
+      - GCPBucketIAMPolicy
+    baseline_caught_by:
+      prowler: true
+      cartography: true
+
+
+# ------------------------------------------------------------
+# PART 2: Expected Attack Paths
+# ------------------------------------------------------------
+# Given the planted misconfigurations, a security analyst would
+# expect the engine to surface these distinct attack scenarios.
+# Each represents a different breach outcome with its own impact
+# scope. The cross-cloud path is the headline scenario CloudPath
+# is designed to find.
+
+expected_attack_paths:
+  - id: aws_only_breach
+    label: AWS-only data exfiltration
+    expected_score_range: [7.0, 8.5]
+    expected_severity: High
+    is_cross_cloud: false
+    clouds: [aws]
+    steps:
+      - technique: T1190
+        cloud: aws
+        node_id: i-05ad7de68bca8ff2b
+      - technique: T1078
+        cloud: aws
+        node_id: i-05ad7de68bca8ff2b
+      - technique: T1552
+        cloud: aws
+        node_id: arn:aws:secretsmanager:us-east-1:773280493073:secret:gcp-service-account-key-OKibqb
+      - technique: T1530
+        cloud: aws
+        node_id: s3-misconfiguration
+    rationale: >
+      An attacker who compromises the EC2 via open SSH escalates via
+      the over-privileged role, reads the secret (even though the
+      secret's value isn't used in this scenario), and exfiltrates
+      data from the public S3 bucket. A pure-AWS breach.
+
+  - id: cross_cloud_breach
+    label: Cross-cloud pivot from AWS to GCP
+    expected_score_range: [8.0, 9.5]
+    expected_severity: High
+    is_cross_cloud: true
+    clouds: [aws, gcp]
+    steps:
+      - technique: T1190
+        cloud: aws
+        node_id: i-05ad7de68bca8ff2b
+      - technique: T1078
+        cloud: aws
+        node_id: i-05ad7de68bca8ff2b
+      - technique: T1552
+        cloud: aws
+        node_id: arn:aws:secretsmanager:us-east-1:773280493073:secret:gcp-service-account-key-OKibqb
+      - technique: T1530
+        cloud: aws
+        node_id: s3-misconfiguration
+      - technique: T1530
+        cloud: gcp
+        node_id: cloudpath-public-bucket-1
+    rationale: >
+      The attacker continues past the S3 exfiltration: the secret
+      contains a GCP service-account key, which is used to authenticate
+      to GCP and read the public bucket. This is the headline
+      cross-cloud scenario CloudPath is built to detect.
+
+  - id: gcp_only_breach
+    label: GCP-only data exfiltration
+    expected_score_range: [6.5, 8.0]
+    expected_severity: High
+    is_cross_cloud: false
+    clouds: [gcp]
+    steps:
+      - technique: T1190
+        cloud: gcp
+        node_id: fw-misconfiguration
+      - technique: T1078
+        cloud: gcp
+        node_id: fw-misconfiguration
+      - technique: T1530
+        cloud: gcp
+        node_id: cloudpath-public-bucket-1
+    rationale: >
+      An attacker exploits the open SSH on the GCP VM, leverages the
+      VM's editor-role service account, and exfiltrates from the
+      public GCS bucket. Pure-GCP equivalent of the AWS-only path.
+
+
+# ------------------------------------------------------------
+# PART 3: Evaluation Configuration
+# ------------------------------------------------------------
+# Settings the test harness reads to control evaluation behaviour.
+
+evaluation:
+  # How many engine runs to average for performance metrics.
+  # More runs = more stable averages but longer test time.
+  performance_runs: 10
+
+  # Tolerance for risk score comparison. If the engine returns 7.5
+  # for a path with expected range [7.0, 8.5], the score is OK.
+  # Outside the range = "score outside expected range" warning.
+  score_match_tolerance: 0.0  # strict range membership
+
+  # If the engine returns MORE paths than the ground truth lists,
+  # how do we treat them?
+  #   "tp_only"     = ignore extras (assume the engine is being more
+  #                   thorough than the ground truth)
+  #   "fp_strict"   = every extra detection counts as a False Positive
+  # For an FYP evaluation, fp_strict is more honest.
+  extra_paths_policy: fp_strict
+
+  # Output paths for test results
+  output_json: security_test_results.json
+  output_csv: security_test_results.csv
+  output_summary: security_test_summary.txt

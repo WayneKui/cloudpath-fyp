@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In — CloudPath</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #05080f;
+        --accent: #00e5ff;
+        --accent2: #5da9e9;
+        --crit: #b14aed;
+        --danger: #ff3860;
+        --warn: #ff8c42;
+        --ok: #2ee6a0;
+        --text: #dfe8f5;
+        --dim: #6b7d96;
+        --border: rgba(93, 169, 233, 0.16);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: "Space Grotesk", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      /* ---- Ambient background canvas: cheap aurora effect ---- */
+      #aurora {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+      }
+      .page-vignette {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse at top, transparent 30%, rgba(5, 8, 15, 0.7) 100%),
+          radial-gradient(ellipse at bottom, transparent 30%, rgba(5, 8, 15, 0.85) 100%);
+      }
+
+      /* ---- Top nav (simplified vs home.html) ---- */
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 36px;
+        background: rgba(5, 8, 15, 0.7);
+        backdrop-filter: blur(20px) saturate(140%);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text);
+        text-decoration: none;
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 700;
+        font-size: 17px;
+        letter-spacing: 0.5px;
+      }
+      .nav-logo svg {
+        width: 22px;
+        height: 22px;
+        stroke: var(--accent);
+        fill: none;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .nav-link {
+        color: var(--dim);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+      .nav-link:hover { color: var(--accent); }
+
+      /* ---- Auth card layout ---- */
+      .auth-shell {
+        position: relative;
+        z-index: 2;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 100px 24px 40px;
+      }
+      .auth-card {
+        width: 100%;
+        max-width: 460px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.65), rgba(8, 13, 24, 0.85));
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 40px 36px;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 32px 60px rgba(0, 0, 0, 0.45);
+      }
+      .auth-header {
+        text-align: center;
+        margin-bottom: 28px;
+      }
+      .auth-eyebrow {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        color: var(--accent);
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+      .auth-title {
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 30px;
+        font-weight: 600;
+        line-height: 1.15;
+        margin-bottom: 8px;
+      }
+      .auth-title .grad {
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .auth-subtitle {
+        color: var(--dim);
+        font-size: 14px;
+      }
+
+      /* ---- Form field styling ---- */
+      .field {
+        margin-bottom: 18px;
+      }
+      .field label {
+        display: block;
+        font-size: 12px;
+        color: var(--dim);
+        letter-spacing: 0.6px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      .field input {
+        width: 100%;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 15px;
+        font-family: "Space Grotesk", sans-serif;
+        outline: none;
+        transition: border-color 0.2s, background 0.2s;
+      }
+      .field input:focus {
+        border-color: var(--accent);
+        background: rgba(0, 229, 255, 0.04);
+      }
+      .field input::placeholder { color: var(--dim); }
+
+      /* ---- Submit button (mirrors home.html .btn-primary) ---- */
+      .submit-btn {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #05080f;
+        border: none;
+        border-radius: 10px;
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.6px;
+        cursor: pointer;
+        margin-top: 8px;
+        text-transform: uppercase;
+        transition: transform 0.1s, box-shadow 0.2s;
+      }
+      .submit-btn:hover {
+        box-shadow: 0 0 24px rgba(0, 229, 255, 0.3);
+      }
+      .submit-btn:active { transform: scale(0.98); }
+
+      /* ---- Error banner ---- */
+      .error-banner {
+        background: rgba(255, 56, 96, 0.1);
+        border: 1px solid rgba(255, 56, 96, 0.35);
+        border-radius: 8px;
+        padding: 12px 14px;
+        color: #ffadbb;
+        font-size: 13px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .error-banner svg {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+        stroke: var(--danger);
+        fill: none;
+        stroke-width: 2;
+        margin-top: 1px;
+      }
+
+      /* ---- Footer link to register/login ---- */
+      .auth-footer {
+        text-align: center;
+        margin-top: 24px;
+        padding-top: 22px;
+        border-top: 1px solid var(--border);
+        color: var(--dim);
+        font-size: 14px;
+      }
+      .auth-footer a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .auth-footer a:hover { text-decoration: underline; }
+
+      /* ---- Mobile ---- */
+      @media (max-width: 540px) {
+        nav { padding: 14px 18px; }
+        .auth-card { padding: 28px 22px; }
+        .auth-title { font-size: 24px; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas id="aurora"></canvas>
+    <div class="page-vignette"></div>
+
+    <nav>
+      <a href="/" class="nav-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+        CloudPath
+      </a>
+      <a href="/" class="nav-link">&larr; Back to home</a>
+    </nav>
+
+    <div class="auth-shell">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="auth-eyebrow">Welcome back</div>
+          <h1 class="auth-title">Sign in to <span class="grad">CloudPath</span></h1>
+          <p class="auth-subtitle">Pick up where you left off.</p>
+        </div>
+
+        {% if error %}
+        <div class="error-banner">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/login" autocomplete="on" novalidate>
+          {% if next_url %}
+          <input type="hidden" name="next" value="{{ next_url }}" />
+          {% endif %}
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="you@example.com"
+              autocomplete="email"
+              required
+              autofocus
+            />
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          <button type="submit" class="submit-btn">&#9654; Sign in</button>
+        </form>
+
+        <div class="auth-footer">
+          New to CloudPath? <a href="/register">Create an account</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Lightweight aurora effect matching home.html. Same canvas
+      // approach but simpler — auth pages don't need the full
+      // multi-mode animation system.
+      (function () {
+        const canvas = document.getElementById("aurora");
+        const ctx = canvas.getContext("2d");
+        let w, h, dpr;
+        function resize() {
+          dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+          w = canvas.width = window.innerWidth * dpr;
+          h = canvas.height = window.innerHeight * dpr;
+          canvas.style.width = window.innerWidth + "px";
+          canvas.style.height = window.innerHeight + "px";
+        }
+        window.addEventListener("resize", resize);
+        resize();
+
+        const blobs = Array.from({ length: 4 }, (_, i) => ({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: 280 + Math.random() * 220,
+          dx: (Math.random() - 0.5) * 0.3,
+          dy: (Math.random() - 0.5) * 0.3,
+          color: i % 2 === 0 ? "rgba(0, 229, 255," : "rgba(177, 74, 237,",
+        }));
+
+        function tick() {
+          ctx.clearRect(0, 0, w, h);
+          ctx.globalCompositeOperation = "lighter";
+          blobs.forEach((b) => {
+            b.x += b.dx;
+            b.y += b.dy;
+            if (b.x < -b.r) b.x = w + b.r;
+            if (b.x > w + b.r) b.x = -b.r;
+            if (b.y < -b.r) b.y = h + b.r;
+            if (b.y > h + b.r) b.y = -b.r;
+            const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+            g.addColorStop(0, b.color + "0.18)");
+            g.addColorStop(1, b.color + "0)");
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          requestAnimationFrame(tick);
+        }
+        tick();
+      })();
+    </script>
+  </body>
+</html>

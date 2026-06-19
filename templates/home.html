@@ -1,0 +1,1122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudPath — See How Attackers Move Through Your Cloud</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #05080f;
+        --accent: #00e5ff;
+        --accent2: #5da9e9;
+        --crit: #b14aed;
+        --danger: #ff3860;
+        --warn: #ff8c42;
+        --ok: #2ee6a0;
+        --text: #dfe8f5;
+        --dim: #6b7d96;
+        --border: rgba(93, 169, 233, 0.16);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: "Space Grotesk", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        overflow-x: hidden;
+        position: relative;
+      }
+      #aurora {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+      }
+      .page-vignette {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse 80% 80% at 50% 50%,
+          transparent 40%,
+          rgba(5, 8, 15, 0.55) 100%
+        );
+      }
+      nav,
+      .hero-wrap,
+      section,
+      .cta-band,
+      footer {
+        position: relative;
+        z-index: 3;
+      }
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        padding: 18px 40px;
+        background: rgba(5, 8, 15, 0.55);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid transparent;
+        transition: 0.3s;
+      }
+      nav.scrolled {
+        background: rgba(5, 8, 15, 0.85);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        color: var(--text);
+      }
+      .nav-logo svg {
+        width: 26px;
+        height: 26px;
+        stroke: var(--accent);
+        fill: none;
+        stroke-width: 1.6;
+        filter: drop-shadow(0 0 6px var(--accent));
+      }
+      .nav-links {
+        display: flex;
+        gap: 24px;
+        margin-left: auto;
+        align-items: center;
+      }
+      .nav-links a {
+        color: var(--dim);
+        text-decoration: none;
+        font-size: 14px;
+        transition: 0.2s;
+        font-weight: 500;
+      }
+      .nav-links a:hover {
+        color: var(--accent);
+      }
+      .nav-links a.active {
+        color: var(--accent);
+      }
+      .nav-cta {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        padding: 9px 22px;
+        border-radius: 7px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        text-transform: uppercase;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+        transition: 0.2s;
+      }
+      .nav-cta:hover {
+        box-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
+        transform: translateY(-1px);
+      }
+      .hero {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 40px;
+      }
+      .hero-content {
+        max-width: 900px;
+      }
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: "JetBrains Mono";
+        font-size: 12px;
+        letter-spacing: 2px;
+        color: var(--accent);
+        text-transform: uppercase;
+        border: 1px solid var(--border);
+        padding: 7px 16px;
+        border-radius: 30px;
+        margin-bottom: 28px;
+        background: rgba(0, 229, 255, 0.1);
+        backdrop-filter: blur(8px);
+        opacity: 0;
+        animation: fadeUp 0.8s 0.1s forwards;
+      }
+      .hero-badge .ping {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--ok);
+        box-shadow: 0 0 8px var(--ok);
+        animation: blink 1.5s infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0.3;
+        }
+      }
+      .hero h1 {
+        font-family: "Chakra Petch";
+        font-size: clamp(42px, 7vw, 86px);
+        line-height: 0.98;
+        font-weight: 700;
+        letter-spacing: -1px;
+        margin-bottom: 24px;
+        text-shadow: 0 4px 30px rgba(0, 0, 0, 0.7);
+      }
+      .hero h1 .line {
+        display: block;
+        opacity: 0;
+        animation: fadeUp 0.9s forwards;
+      }
+      .hero h1 .line:nth-child(1) {
+        animation-delay: 0.25s;
+      }
+      .hero h1 .line:nth-child(2) {
+        animation-delay: 0.4s;
+      }
+      .hero h1 .grad {
+        background: linear-gradient(100deg, var(--accent), var(--crit));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .hero p {
+        font-size: clamp(16px, 2vw, 20px);
+        color: var(--text);
+        max-width: 600px;
+        line-height: 1.6;
+        margin-bottom: 38px;
+        opacity: 0;
+        animation: fadeUp 0.9s 0.55s forwards;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+      }
+      .hero-actions {
+        display: flex;
+        gap: 16px;
+        opacity: 0;
+        animation: fadeUp 0.9s 0.7s forwards;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        padding: 16px 36px;
+        border-radius: 9px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        text-decoration: none;
+        box-shadow: 0 0 28px rgba(0, 229, 255, 0.4);
+        transition: 0.2s;
+      }
+      .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0 42px rgba(0, 229, 255, 0.7);
+      }
+      .btn-ghost {
+        border: 1px solid var(--accent);
+        color: var(--text);
+        padding: 16px 32px;
+        border-radius: 9px;
+        font-family: "Chakra Petch";
+        font-weight: 600;
+        font-size: 15px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: 0.2s;
+        backdrop-filter: blur(6px);
+        background: rgba(5, 8, 15, 0.3);
+      }
+      .btn-ghost:hover {
+        background: rgba(0, 229, 255, 0.15);
+      }
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .scroll-hint {
+        position: absolute;
+        bottom: 34px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5;
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 2px;
+        color: var(--text);
+        text-transform: uppercase;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        opacity: 0;
+        animation: fadeUp 1s 1.1s forwards;
+      }
+      .scroll-hint .mouse {
+        width: 22px;
+        height: 36px;
+        border: 2px solid var(--text);
+        border-radius: 12px;
+        position: relative;
+      }
+      .scroll-hint .mouse::after {
+        content: "";
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 3px;
+        height: 7px;
+        background: var(--accent);
+        border-radius: 2px;
+        animation: scrollDot 1.6s infinite;
+      }
+      @keyframes scrollDot {
+        0% {
+          opacity: 1;
+          top: 6px;
+        }
+        70% {
+          opacity: 0;
+          top: 18px;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+      section {
+        padding: 120px 40px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .sec-tag {
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        letter-spacing: 3px;
+        color: var(--accent);
+        text-transform: uppercase;
+        margin-bottom: 16px;
+      }
+      .sec-title {
+        font-family: "Chakra Petch";
+        font-size: clamp(30px, 4.5vw, 52px);
+        font-weight: 700;
+        line-height: 1.05;
+        margin-bottom: 24px;
+        letter-spacing: -0.5px;
+        text-shadow: 0 2px 15px rgba(0, 0, 0, 0.7);
+      }
+      .sec-desc {
+        font-size: 18px;
+        color: var(--text);
+        max-width: 620px;
+        line-height: 1.7;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+      }
+      .m-left {
+        opacity: 0;
+        transform: translateX(-70px);
+        transition:
+          opacity 0.8s,
+          transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .m-left.in {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .m-right {
+        opacity: 0;
+        transform: translateX(70px);
+        transition:
+          opacity 0.8s,
+          transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .m-right.in {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .m-up {
+        opacity: 0;
+        transform: translateY(60px);
+        transition:
+          opacity 0.7s,
+          transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .m-up.in {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .m-zoom {
+        opacity: 0;
+        transform: scale(0.86);
+        transition:
+          opacity 0.7s,
+          transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .m-zoom.in {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .m-flip {
+        opacity: 0;
+        transform: perspective(900px) rotateX(18deg) translateY(40px);
+        transform-origin: top;
+        transition:
+          opacity 0.7s,
+          transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .m-flip.in {
+        opacity: 1;
+        transform: perspective(900px) rotateX(0) translateY(0);
+      }
+      .d1 {
+        transition-delay: 0s;
+      }
+      .d2 {
+        transition-delay: 0.12s;
+      }
+      .d3 {
+        transition-delay: 0.24s;
+      }
+      .d4 {
+        transition-delay: 0.36s;
+      }
+      .d5 {
+        transition-delay: 0.48s;
+      }
+      .d6 {
+        transition-delay: 0.6s;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 30px;
+        margin-top: 60px;
+      }
+      .stat {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 34px;
+        background: rgba(10, 15, 28, 0.75);
+        backdrop-filter: blur(8px);
+      }
+      .stat .num {
+        font-family: "Chakra Petch";
+        font-size: 52px;
+        font-weight: 700;
+        color: var(--danger);
+        line-height: 1;
+        margin-bottom: 12px;
+      }
+      .stat .lbl {
+        color: var(--dim);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+        margin-top: 60px;
+      }
+      .step {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 32px;
+        background: rgba(10, 15, 28, 0.75);
+        backdrop-filter: blur(8px);
+        transition:
+          border-color 0.3s,
+          box-shadow 0.3s,
+          transform 0.3s,
+          opacity 0.7s;
+      }
+      .step:hover {
+        border-color: var(--accent);
+        box-shadow: 0 16px 40px rgba(0, 229, 255, 0.12);
+        transform: translateY(-6px);
+      }
+      .step .n {
+        font-family: "Chakra Petch";
+        font-size: 14px;
+        color: var(--accent);
+        letter-spacing: 2px;
+      }
+      .step .icon {
+        width: 52px;
+        height: 52px;
+        margin: 18px 0;
+        stroke: var(--accent);
+        fill: none;
+        stroke-width: 1.5;
+      }
+      .step h3 {
+        font-family: "Chakra Petch";
+        font-size: 22px;
+        margin-bottom: 10px;
+      }
+      .step p {
+        color: var(--dim);
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+        margin-top: 60px;
+      }
+      .feat {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px;
+        background: rgba(10, 15, 28, 0.7);
+        backdrop-filter: blur(8px);
+        transition:
+          border-color 0.3s,
+          background 0.3s,
+          transform 0.3s,
+          opacity 0.7s;
+      }
+      .feat:hover {
+        border-color: var(--accent2);
+        background: rgba(10, 15, 28, 0.9);
+        transform: translateY(-4px);
+      }
+      .feat .ficon {
+        font-size: 26px;
+        margin-bottom: 14px;
+      }
+      .feat h4 {
+        font-family: "Chakra Petch";
+        font-size: 17px;
+        margin-bottom: 8px;
+      }
+      .feat p {
+        color: var(--dim);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .compare {
+        margin-top: 50px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        background: rgba(10, 15, 28, 0.75);
+        backdrop-filter: blur(8px);
+      }
+      .compare table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .compare th,
+      .compare td {
+        padding: 18px 20px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        font-size: 15px;
+      }
+      .compare th {
+        font-family: "Chakra Petch";
+        background: rgba(0, 229, 255, 0.06);
+        letter-spacing: 1px;
+      }
+      .compare .us {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .compare .yes {
+        color: var(--ok);
+      }
+      .compare .no {
+        color: var(--danger);
+      }
+      .compare tr.row-rev {
+        opacity: 0;
+        transform: translateX(-30px);
+        transition:
+          opacity 0.5s,
+          transform 0.6s;
+      }
+      .compare tr.row-rev.in {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .cta-band {
+        text-align: center;
+        padding: 130px 40px;
+        position: relative;
+      }
+      .cta-band h2 {
+        font-family: "Chakra Petch";
+        font-size: clamp(32px, 5vw, 56px);
+        margin-bottom: 20px;
+        text-shadow: 0 2px 15px rgba(0, 0, 0, 0.7);
+      }
+      .cta-band p {
+        color: var(--text);
+        font-size: 18px;
+        margin-bottom: 36px;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+      }
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 40px;
+        text-align: center;
+        color: var(--dim);
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        background: rgba(5, 8, 15, 0.7);
+        backdrop-filter: blur(8px);
+      }
+      @media (max-width: 860px) {
+        .stats,
+        .steps,
+        .features {
+          grid-template-columns: 1fr;
+        }
+        /* Nav links are kept visible at all viewport widths so users
+           can navigate between sections. A future enhancement would
+           be a hamburger menu for true mobile widths. */
+        .nav-links {
+          gap: 12px;
+        }
+        .nav-links a {
+          font-size: 12px;
+        }
+        .nav-cta {
+          padding: 6px 12px;
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="aurora"></canvas>
+    <div class="page-vignette"></div>
+    <nav id="nav">
+      <a href="/" class="nav-logo"
+        ><svg viewBox="0 0 24 24">
+          <path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+        CloudPath</a
+      >
+      <div class="nav-links">
+        <a href="/" class="active">Home</a>
+        {% if current_user.is_authenticated %}
+          <a href="/connect">Connect</a>
+          <a href="/app">Scanner</a>
+          <a href="/rules">Rules</a>
+          <a href="/docs">Docs</a>
+          <a href="/logout" class="nav-cta">Logout</a>
+        {% else %}
+          <a href="/login" class="nav-cta">Sign in</a>
+        {% endif %}
+      </div>
+    </nav>
+    <div class="hero" data-mode="hero">
+      <div class="hero-content">
+        <div class="hero-badge"><span class="ping"></span> Multi-Cloud Attack Path Analysis</div>
+        <h1>
+          <span class="line">See how attackers</span
+          ><span class="line">move through your <span class="grad">cloud.</span></span>
+        </h1>
+        <p>
+          CloudPath correlates misconfigurations across AWS and GCP into real attack paths &mdash;
+          mapped to MITRE ATT&CK, scored with CVSS, and visualized as a living graph. Stop chasing
+          isolated alerts. See the chain.
+        </p>
+        <div class="hero-actions">
+          {% if current_user.is_authenticated %}
+            <a href="/app" class="btn-primary">&#9654; Open Scanner</a
+            ><a href="#how" class="btn-ghost">See How It Works</a>
+          {% else %}
+            <a href="/login" class="btn-primary">&#9654; Get Started</a
+            ><a href="#how" class="btn-ghost">See How It Works</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <section id="problem" data-mode="threat">
+      <div class="m-left reveal">
+        <div class="sec-tag">The Problem</div>
+        <div class="sec-title">Isolated alerts hide<br />the real attack.</div>
+        <div class="sec-desc">
+          Traditional cloud security tools flag hundreds of misconfigurations in isolation, leaving
+          analysts buried in noise. A single public bucket isn't the threat &mdash; it's how it
+          chains with an over-privileged role and an exposed server that lets an attacker reach your
+          data.
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat m-left reveal d1">
+          <div class="num" data-count="350" data-suffix="+">0</div>
+          <div class="lbl">unique attack paths a typical multi-cloud org faces</div>
+        </div>
+        <div class="stat m-left reveal d2">
+          <div class="num" data-count="65" data-suffix="%">0</div>
+          <div class="lbl">of those paths missed by single-cloud native tools</div>
+        </div>
+        <div class="stat m-left reveal d3">
+          <div class="num" data-text="#1">0</div>
+          <div class="lbl">misconfiguration remains the top cause of cloud breaches</div>
+        </div>
+      </div>
+    </section>
+    <section id="how" data-mode="network">
+      <div class="m-up reveal">
+        <div class="sec-tag">How It Works</div>
+        <div class="sec-title">Three steps to clarity.</div>
+      </div>
+      <div class="steps">
+        <div class="step m-up reveal d1">
+          <div class="n">STEP 01</div>
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M12 2v6m0 0 3-3m-3 3L9 5M5 12H2m20 0h-3M12 22v-6m0 0 3 3m-3-3-3 3" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <h3>Connect</h3>
+          <p>
+            Securely link your AWS and GCP accounts with read-only access. No agents, no stored
+            keys.
+          </p>
+        </div>
+        <div class="step m-up reveal d2">
+          <div class="n">STEP 02</div>
+          <svg class="icon" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4-4" />
+          </svg>
+          <h3>Scan</h3>
+          <p>
+            Prowler audits hundreds of misconfigurations while Cartography maps your infrastructure
+            into a graph.
+          </p>
+        </div>
+        <div class="step m-up reveal d3">
+          <div class="n">STEP 03</div>
+          <svg class="icon" viewBox="0 0 24 24">
+            <circle cx="5" cy="6" r="2.5" />
+            <circle cx="19" cy="6" r="2.5" />
+            <circle cx="12" cy="18" r="2.5" />
+            <path d="M7 7l4 9m6-9-4 9" />
+          </svg>
+          <h3>Visualize</h3>
+          <p>
+            See attack paths as an interactive graph, labeled with MITRE ATT&CK techniques and
+            scored by CVSS.
+          </p>
+        </div>
+      </div>
+    </section>
+    <section id="features" data-mode="orbit">
+      <div class="m-right reveal">
+        <div class="sec-tag">Capabilities</div>
+        <div class="sec-title">Built for analysts.</div>
+      </div>
+      <div class="features">
+        <div class="feat m-flip reveal d1">
+          <div class="ficon">&#128279;</div>
+          <h4>Attack Path Correlation</h4>
+          <p>Chains individual misconfigurations into complete kill-chains.</p>
+        </div>
+        <div class="feat m-flip reveal d2">
+          <div class="ficon">&#127919;</div>
+          <h4>MITRE ATT&CK Mapping</h4>
+          <p>Every step labeled with the adversary technique.</p>
+        </div>
+        <div class="feat m-flip reveal d3">
+          <div class="ficon">&#9729;</div>
+          <h4>Multi-Cloud</h4>
+          <p>AWS and GCP in one unified graph including cross-cloud paths.</p>
+        </div>
+        <div class="feat m-flip reveal d4">
+          <div class="ficon">&#128202;</div>
+          <h4>CVSS-Aligned Scoring</h4>
+          <p>Transparent 0-10 risk scores. No black box.</p>
+        </div>
+        <div class="feat m-flip reveal d5">
+          <div class="ficon">&#9881;</div>
+          <h4>Custom Rules</h4>
+          <p>Write detection rules through a guided form.</p>
+        </div>
+        <div class="feat m-flip reveal d6">
+          <div class="ficon">&#128275;</div>
+          <h4>Open & Transparent</h4>
+          <p>Every rule is readable and editable.</p>
+        </div>
+      </div>
+    </section>
+    <section id="compare" data-mode="calm">
+      <div class="m-right reveal">
+        <div class="sec-tag">Why CloudPath</div>
+        <div class="sec-title">Open where others<br />are closed.</div>
+      </div>
+      <div class="compare">
+        <table>
+          <tr class="row-rev reveal d1">
+            <th>Capability</th>
+            <th>Native Tools</th>
+            <th>Commercial CNAPP</th>
+            <th class="us">CloudPath</th>
+          </tr>
+          <tr class="row-rev reveal d2">
+            <td>Attack path correlation</td>
+            <td class="no">Limited</td>
+            <td class="yes">Yes</td>
+            <td class="us yes">Yes</td>
+          </tr>
+          <tr class="row-rev reveal d3">
+            <td>Multi-cloud in one view</td>
+            <td class="no">No</td>
+            <td class="yes">Yes</td>
+            <td class="us yes">Yes</td>
+          </tr>
+          <tr class="row-rev reveal d4">
+            <td>Cross-cloud paths</td>
+            <td class="no">No</td>
+            <td class="no">Partial</td>
+            <td class="us yes">Yes</td>
+          </tr>
+          <tr class="row-rev reveal d5">
+            <td>Transparent rules</td>
+            <td class="no">No</td>
+            <td class="no">No</td>
+            <td class="us yes">Yes</td>
+          </tr>
+          <tr class="row-rev reveal d6">
+            <td>Open / free</td>
+            <td class="no">Paid tiers</td>
+            <td class="no">$$$$</td>
+            <td class="us yes">Yes</td>
+          </tr>
+        </table>
+      </div>
+    </section>
+    <div class="cta-band" data-mode="aurora">
+      <div class="m-zoom reveal">
+        <h2>Ready to see your<br />attack paths?</h2>
+        <p>Launch the scanner and visualize how an attacker could move through your cloud.</p>
+        {% if current_user.is_authenticated %}
+          <a href="/app" class="btn-primary">&#9654; Open Scanner</a>
+        {% else %}
+          <a href="/login" class="btn-primary">&#9654; Get Started</a>
+        {% endif %}
+      </div>
+    </div>
+    <footer>CloudPath &middot; Multi-Cloud Attack Path Engine &middot; &copy; 2026</footer>
+    <script>
+      (function () {
+        const canvas = document.getElementById("aurora");
+        const ctx = canvas.getContext("2d");
+        let w, h, dpr;
+        function resize() {
+          dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+          w = canvas.width = window.innerWidth * dpr;
+          h = canvas.height = window.innerHeight * dpr;
+          canvas.style.width = window.innerWidth + "px";
+          canvas.style.height = window.innerHeight + "px";
+        }
+        resize();
+        window.addEventListener("resize", resize);
+        const particles = [];
+        for (let i = 0; i < 90; i++) {
+          particles.push({
+            x: Math.random() * 2000,
+            y: Math.random() * 1200,
+            r: Math.random() * 2 + 0.6,
+            vx: (Math.random() - 0.5) * 0.6,
+            vy: (Math.random() - 0.5) * 0.6,
+            a: Math.random() * 0.6 + 0.3,
+            hue: Math.random(),
+            angle: Math.random() * Math.PI * 2,
+            orbR: Math.random() * 150 + 50,
+            orbSpeed: (Math.random() * 0.005 + 0.002) * (Math.random() < 0.5 ? -1 : 1),
+          });
+        }
+        const modes = ["hero", "threat", "network", "orbit", "calm", "aurora"];
+        let modeWeights = { hero: 1, threat: 0, network: 0, orbit: 0, calm: 0, aurora: 0 };
+        function updateModeWeights() {
+          const sections = document.querySelectorAll("[data-mode]");
+          const vh = window.innerHeight;
+          const center = window.scrollY + vh / 2;
+          let active = sections[0];
+          let activeI = 0;
+          sections.forEach((s, i) => {
+            const top = s.offsetTop;
+            if (center >= top) {
+              active = s;
+              activeI = i;
+            }
+          });
+          const next = sections[activeI + 1];
+          const top = active.offsetTop;
+          const bot = next ? next.offsetTop : top + active.offsetHeight;
+          const t = Math.max(0, Math.min(1, (center - top) / Math.max(1, bot - top)));
+          const m1 = active.dataset.mode;
+          const m2 = next ? next.dataset.mode : m1;
+          modes.forEach((m) => (modeWeights[m] = 0));
+          modeWeights[m1] = 1 - t;
+          modeWeights[m2] = (modeWeights[m2] || 0) + t;
+        }
+        let t = 0,
+          lastFrame = 0;
+        function draw(now) {
+          if (now - lastFrame < 25) {
+            requestAnimationFrame(draw);
+            return;
+          }
+          lastFrame = now;
+          ctx.clearRect(0, 0, w, h);
+          const bg = ctx.createLinearGradient(0, 0, 0, h);
+          bg.addColorStop(0, "#05080f");
+          bg.addColorStop(1, "#0a0f1c");
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, w, h);
+          const W = modeWeights;
+          const auroraWeight = W.hero + W.aurora;
+          if (auroraWeight > 0.02) {
+            const layers = [
+              ["0,229,255", 90, 0.0018, 0.008, 0, 0.32],
+              ["177,74,237", 110, 0.0014, 0.011, 100, 0.3],
+              ["255,56,96", 80, 0.0022, 0.014, 200, 0.22],
+              ["93,169,233", 70, 0.0026, 0.009, 300, 0.26],
+            ];
+            layers.forEach((L, i) => {
+              ctx.beginPath();
+              const baseY = h * (0.35 + i * 0.18);
+              ctx.moveTo(0, h);
+              for (let x = 0; x <= w; x += 12) {
+                const y =
+                  baseY +
+                  Math.sin(x * L[2] + t * L[3] + L[4]) * L[1] * dpr +
+                  Math.sin(x * L[2] * 2.3 + t * L[3] * 0.7) * L[1] * 0.4 * dpr;
+                ctx.lineTo(x, y);
+              }
+              ctx.lineTo(w, h);
+              ctx.lineTo(0, h);
+              ctx.closePath();
+              const wg = ctx.createLinearGradient(0, baseY - L[1] * dpr, 0, h);
+              wg.addColorStop(0, "rgba(" + L[0] + "," + L[5] * auroraWeight + ")");
+              wg.addColorStop(1, "rgba(" + L[0] + ",0)");
+              ctx.fillStyle = wg;
+              ctx.fill();
+            });
+          }
+          if (W.calm > 0.02) {
+            const layers = [
+              ["93,169,233", 40, 0.001, 0.004, 0, 0.2],
+              ["0,229,255", 30, 0.0013, 0.003, 150, 0.15],
+            ];
+            layers.forEach((L, i) => {
+              ctx.beginPath();
+              const baseY = h * (0.5 + i * 0.2);
+              ctx.moveTo(0, h);
+              for (let x = 0; x <= w; x += 14) {
+                const y = baseY + Math.sin(x * L[2] + t * L[3] + L[4]) * L[1] * dpr;
+                ctx.lineTo(x, y);
+              }
+              ctx.lineTo(w, h);
+              ctx.lineTo(0, h);
+              ctx.closePath();
+              const wg = ctx.createLinearGradient(0, baseY - L[1] * dpr, 0, h);
+              wg.addColorStop(0, "rgba(" + L[0] + "," + L[5] * W.calm + ")");
+              wg.addColorStop(1, "rgba(" + L[0] + ",0)");
+              ctx.fillStyle = wg;
+              ctx.fill();
+            });
+          }
+          if (W.threat > 0.02) {
+            const pulse = Math.sin(t * 0.02) * 0.5 + 0.5;
+            ctx.strokeStyle = "rgba(255,56,96," + 0.18 * W.threat + ")";
+            ctx.lineWidth = 1 * dpr;
+            [0.3, 0.55, 0.8].forEach((p, i) => {
+              const r = (200 + i * 250 + pulse * 80) * dpr;
+              ctx.beginPath();
+              ctx.arc(w * 0.5, h * 0.5, r, 0, Math.PI * 2);
+              ctx.stroke();
+            });
+            particles.forEach((p) => {
+              if (p.hue < 0.7) {
+                const x = (p.x % window.innerWidth) * dpr;
+                const y = (p.y % window.innerHeight) * dpr;
+                ctx.beginPath();
+                ctx.arc(x, y, p.r * dpr * 1.5, 0, Math.PI * 2);
+                ctx.fillStyle =
+                  "rgba(255," +
+                  (56 + p.hue * 100) +
+                  "," +
+                  (96 - p.hue * 40) +
+                  "," +
+                  p.a * W.threat +
+                  ")";
+                ctx.shadowBlur = 14;
+                ctx.shadowColor = "rgba(255,56,96,1)";
+                ctx.fill();
+                ctx.shadowBlur = 0;
+              }
+            });
+          }
+          if (W.network > 0.02) {
+            const pts = particles
+              .slice(0, 40)
+              .map((p) => ({
+                x: (p.x % window.innerWidth) * dpr,
+                y: (p.y % window.innerHeight) * dpr,
+              }));
+            const maxD = 180 * dpr;
+            for (let i = 0; i < pts.length; i++) {
+              for (let j = i + 1; j < pts.length; j++) {
+                const dx = pts[i].x - pts[j].x,
+                  dy = pts[i].y - pts[j].y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < maxD) {
+                  const op = (1 - d / maxD) * 0.25 * W.network;
+                  ctx.strokeStyle = "rgba(0,229,255," + op + ")";
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(pts[i].x, pts[i].y);
+                  ctx.lineTo(pts[j].x, pts[j].y);
+                  ctx.stroke();
+                }
+              }
+            }
+            pts.forEach((p) => {
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 2 * dpr, 0, Math.PI * 2);
+              ctx.fillStyle = "rgba(0,229,255," + 0.7 * W.network + ")";
+              ctx.shadowBlur = 10;
+              ctx.shadowColor = "rgba(0,229,255,1)";
+              ctx.fill();
+              ctx.shadowBlur = 0;
+            });
+          }
+          if (W.orbit > 0.02) {
+            const c1 = [w * 0.3, h * 0.5];
+            const c2 = [w * 0.7, h * 0.5];
+            particles.slice(0, 50).forEach((p, i) => {
+              p.angle += p.orbSpeed;
+              const cx = i % 2 === 0 ? c1 : c2;
+              const x = cx[0] + Math.cos(p.angle) * p.orbR * dpr;
+              const y = cx[1] + Math.sin(p.angle) * p.orbR * dpr * 0.6;
+              ctx.beginPath();
+              ctx.arc(x, y, p.r * dpr, 0, Math.PI * 2);
+              const col = i % 2 === 0 ? "0,229,255" : "177,74,237";
+              ctx.fillStyle = "rgba(" + col + "," + p.a * W.orbit + ")";
+              ctx.shadowBlur = 12;
+              ctx.shadowColor = "rgba(" + col + ",1)";
+              ctx.fill();
+              ctx.shadowBlur = 0;
+            });
+          }
+          particles.forEach((p) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            if (p.x < -10) p.x = window.innerWidth + 10;
+            if (p.x > window.innerWidth + 10) p.x = -10;
+            if (p.y < -10) p.y = window.innerHeight + 10;
+            if (p.y > window.innerHeight + 10) p.y = -10;
+            if (W.threat < 0.5 && W.network < 0.5 && W.orbit < 0.5) {
+              const color = p.hue < 0.4 ? "0,229,255" : p.hue < 0.75 ? "177,74,237" : "93,169,233";
+              ctx.beginPath();
+              ctx.arc(p.x * dpr, p.y * dpr, p.r * dpr, 0, Math.PI * 2);
+              ctx.fillStyle = "rgba(" + color + "," + p.a * 0.6 + ")";
+              ctx.shadowBlur = 8;
+              ctx.shadowColor = "rgba(" + color + ",1)";
+              ctx.fill();
+              ctx.shadowBlur = 0;
+            }
+          });
+          t += 1;
+          requestAnimationFrame(draw);
+        }
+        requestAnimationFrame(draw);
+        let ticking = false;
+        function onScroll() {
+          if (!ticking) {
+            requestAnimationFrame(() => {
+              updateModeWeights();
+              document.getElementById("nav").classList.toggle("scrolled", window.scrollY > 40);
+              ticking = false;
+            });
+            ticking = true;
+          }
+        }
+        window.addEventListener("scroll", onScroll, { passive: true });
+        updateModeWeights();
+      })();
+      (function () {
+        const done = new Set();
+        const obs = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((e) => {
+              if (e.isIntersecting) {
+                e.target.classList.add("in");
+                if (e.target.matches("[data-count],[data-text]")) runCount(e.target);
+                e.target.querySelectorAll &&
+                  e.target.querySelectorAll("[data-count],[data-text]").forEach(runCount);
+                obs.unobserve(e.target);
+              }
+            });
+          },
+          { threshold: 0.2 },
+        );
+        document.querySelectorAll(".reveal").forEach((el) => obs.observe(el));
+        function runCount(c) {
+          if (done.has(c)) return;
+          done.add(c);
+          if (c.dataset.text) {
+            c.textContent = c.dataset.text;
+            return;
+          }
+          if (!c.dataset.count) return;
+          const target = parseInt(c.dataset.count),
+            suffix = c.dataset.suffix || "";
+          let cur = 0;
+          const step = target / 40;
+          (function tick() {
+            cur += step;
+            if (cur >= target) c.textContent = target + suffix;
+            else {
+              c.textContent = Math.floor(cur) + suffix;
+              requestAnimationFrame(tick);
+            }
+          })();
+        }
+      })();
+    </script>
+  </body>
+</html>

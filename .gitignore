@@ -1,0 +1,141 @@
+# =============================================================
+# CloudPath FYP .gitignore
+# =============================================================
+# Strict by intent: anything that COULD contain a secret is excluded.
+# It's easier to explicitly `git add` a file we want than to recover
+# from a leaked credential.
+# =============================================================
+
+
+# =============================================================
+# CRITICAL: real cloud-provider credential files
+# Listed by EXACT NAME so they cannot be accidentally pushed.
+# =============================================================
+gcp-key.json
+compromised-key.json
+
+# Generic patterns for service account JSON files. Any new GCP
+# SA key dropped into the project is caught by these.
+*-key.json
+*-credentials.json
+*-service-account*.json
+service_account*.json
+credentials.json
+
+
+# =============================================================
+# AWS credential files
+# =============================================================
+.aws/
+aws-credentials.txt
+aws-config.txt
+
+
+# =============================================================
+# Environment & secret files
+# =============================================================
+.env
+.env.*
+*.env
+secrets.txt
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+
+
+# =============================================================
+# Application-specific secrets / state
+# =============================================================
+# Fernet encryption key file if you ever dump it to disk
+fernet*.key
+encryption*.key
+
+# Flask session/secret files
+flask_secret*
+*.secret
+
+
+# =============================================================
+# Python build / cache artifacts
+# =============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+.eggs/
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+
+# =============================================================
+# Virtual environments
+# =============================================================
+venv/
+env/
+ENV/
+.venv/
+
+
+# =============================================================
+# IDE / editor files
+# =============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+
+# =============================================================
+# Scan output & evaluation results (large, regenerable, may
+# contain real resource names/ARNs you don't want public)
+# =============================================================
+prowler-output/
+backups/
+gcp_test.log
+*.log
+
+# Evaluation artefacts — large and regenerable
+layer2_results.csv
+layer2_results.json
+layer2_summary.txt
+security_test_results.csv
+security_test_results.json
+security_test_summary.txt
+
+
+# =============================================================
+# Database backups & exports
+# =============================================================
+*.dump
+*.bak
+*.sql.gz
+postgres-data/
+neo4j-data/
+
+
+# =============================================================
+# Test artefacts that might contain real data
+# =============================================================
+test_gcp.py
+inspect_findings.py
+
+
+# =============================================================
+# Docker volumes (if Compose ever creates local mounts)
+# =============================================================
+volumes/
+docker-volumes/
