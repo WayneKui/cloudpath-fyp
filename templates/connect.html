@@ -450,7 +450,10 @@
             <div class="code-box" id="aws-eid">
               External ID: <span id="eid-val">loading…</span><button class="copy-btn" onclick="copyText('aws-eid', this)">copy</button>
             </div>
-            <a class="btn secondary" href="#" target="_blank"
+            <a class="btn secondary" id="cf-deploy-link" href="#"
+               target="_blank" rel="noopener"
+               aria-disabled="true"
+               onclick="return cfLinkReady()"
               >&#8599; Open CloudFormation Template</a
             >
           </div>
@@ -546,7 +549,36 @@
     <footer>CloudPath &middot; Multi-Cloud Attack Path Engine &middot; &copy; 2026</footer>
     <script>
       // ====================================================
+      // Constants for the CloudFormation deep-link
+      // ====================================================
+      // The template lives in CloudPath's public GitHub repo. CloudFormation
+      // can fetch templates from any HTTPS URL; raw.githubusercontent.com
+      // is the cleanest free option. If we ever move the template (e.g. to
+      // S3 in the scanner account), only this constant needs to change.
+      const CF_TEMPLATE_URL =
+        "https://raw.githubusercontent.com/WayneKui/cloudpath-fyp/main/" +
+        "cloudformation/cloudpath-scanrole.yaml";
+
+      // Region the user lands in. Doesn't affect the role (IAM is global)
+      // but CloudFormation Console needs A region in the URL. us-east-1
+      // is the most universally-available.
+      const CF_REGION = "us-east-1";
+
+      // Used by the click handler to refuse navigation until the URL
+      // has been built from /api/auth/status. Prevents the "click does
+      // nothing" feeling during the brief loading window.
+      let cfLinkBuilt = false;
+      function cfLinkReady() {
+        if (!cfLinkBuilt) {
+          alert("Still loading your external ID. Please wait a second and try again.");
+          return false;   // cancel the navigation
+        }
+        return true;
+      }
+
+      // ====================================================
       // Initial population: scanner account ID + external ID
+      // + CloudFormation deep-link
       // ====================================================
       // Both come from /api/auth/status. The user can't change them —
       // scanner account is OUR account, external ID is generated
@@ -555,10 +587,32 @@
         .then(r => r.json())
         .then(data => {
           if (!data.logged_in) return;
-          document.getElementById("scanner-acct-id").textContent =
-            data.scanner_aws_account_id || "(not configured)";
-          document.getElementById("eid-val").textContent =
-            data.user.aws_external_id || "(not configured)";
+          const scannerId = data.scanner_aws_account_id || "(not configured)";
+          const externalId = data.user.aws_external_id || "(not configured)";
+          document.getElementById("scanner-acct-id").textContent = scannerId;
+          document.getElementById("eid-val").textContent = externalId;
+
+          // Build the CloudFormation Quick-Create deep-link. This sends
+          // the user to AWS CloudFormation Console with our template
+          // pre-loaded and their per-tenant ExternalId pre-filled.
+          // Reference: AWS docs, "CloudFormation Quick-Create Stack URL".
+          if (data.scanner_aws_account_id && data.user.aws_external_id) {
+            const params = new URLSearchParams({
+              stackName: "CloudPathScanRole",
+              templateURL: CF_TEMPLATE_URL,
+              param_ExternalId: externalId,
+              param_ScannerAccountId: scannerId,
+              param_RoleName: "CloudPathScanRole",
+            });
+            const deepLink =
+              "https://console.aws.amazon.com/cloudformation/home" +
+              "?region=" + CF_REGION +
+              "#/stacks/quickcreate?" + params.toString();
+            const linkEl = document.getElementById("cf-deploy-link");
+            linkEl.href = deepLink;
+            linkEl.setAttribute("aria-disabled", "false");
+            cfLinkBuilt = true;
+          }
         })
         .catch(() => {
           document.getElementById("scanner-acct-id").textContent = "(error)";
