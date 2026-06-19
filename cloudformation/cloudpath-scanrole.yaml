@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  CloudPath read-only scanning role. Creates an IAM role that the CloudPath
+  scanner account can assume to read your AWS environment for misconfiguration
+  and attack-path analysis. No write permissions are granted. CloudPath
+  receives short-lived STS credentials (max 1 hour, auto-refreshed) and never
+  stores your account's long-lived keys.
+
+  This template is hosted in CloudPath's public GitHub repository and is
+  pre-filled with the External ID generated for your specific tenant when
+  you click "Open CloudFormation Template" on the Connect page. The External
+  ID is a per-tenant secret that defends against the "confused deputy"
+  attack: even if another CloudPath user knew your role ARN, they could not
+  assume it because they don't know your External ID.
+
+Parameters:
+
+  ExternalId:
+    Type: String
+    Description: >
+      The per-tenant external ID from your CloudPath Connect page (e.g.
+      "cloudpath-tenant-new-8be08534"). DO NOT EDIT — this value is set
+      automatically when CloudPath deep-links you into CloudFormation.
+    AllowedPattern: "^cloudpath-tenant-[A-Za-z0-9_-]{4,80}$"
+    ConstraintDescription: >
+      Must match the format CloudPath generates (cloudpath-tenant-<id>).
+      If you reached this page without using CloudPath's "Open
+      CloudFormation Template" button, return to the Connect page and
+      click the button to get the correct ExternalId.
+
+  ScannerAccountId:
+    Type: String
+    Default: "456375341368"
+    Description: >
+      The AWS account ID of the CloudPath scanner. This account is the
+      ONLY one allowed to assume the role created by this template, and
+      only when it presents the correct ExternalId. Leave the default
+      unless CloudPath support told you otherwise.
+    AllowedPattern: "^[0-9]{12}$"
+    ConstraintDescription: Must be a 12-digit AWS account ID.
+
+  RoleName:
+    Type: String
+    Default: "CloudPathScanRole"
+    Description: >
+      Name for the IAM role. The default works for most users. Change
+      only if you already have a role named CloudPathScanRole in this
+      account that you want to keep.
+    AllowedPattern: "^[A-Za-z0-9+=,.@_-]{1,64}$"
+    ConstraintDescription: Must be a valid IAM role name (1-64 chars).
+
+Resources:
+
+  # ===========================================================================
+  # The role itself: assumable ONLY by the scanner account, ONLY when
+  # the correct ExternalId is presented. The trust policy is the security
+  # boundary here -- get it wrong and either you can't be scanned, or
+  # attackers can assume your role.
+  # ===========================================================================
+  CloudPathScanRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      MaxSessionDuration: 3600  # 1 hour; matches CloudPath's auto-refresh cadence
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudPathScannerWithExternalId
+            Effect: Allow
+            Principal:
+              # `arn:aws:iam::<account>:root` means "any IAM principal in
+              # that account". Combined with the ExternalId condition, this
+              # is the standard cross-account assume-role pattern.
+              AWS: !Sub "arn:aws:iam::${ScannerAccountId}:root"
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      # SecurityAudit + ReadOnlyAccess together cover everything Cartography
+      # and Prowler need:
+      #   - SecurityAudit:  read security-relevant configs (IAM, security
+      #                     groups, public bucket policies, etc.)
+      #   - ReadOnlyAccess: broad read coverage for resources Cartography
+      #                     enumerates that SecurityAudit alone misses
+      # NEITHER policy grants any write/delete/modify permission.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/SecurityAudit
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
+      Tags:
+        - Key: CreatedBy
+          Value: CloudPath
+        - Key: Purpose
+          Value: read-only-cloud-security-scanning
+        - Key: ExternalId
+          Value: !Ref ExternalId
+
+Outputs:
+
+  RoleArn:
+    Description: >
+      Copy this ARN and paste it into the "AWS Role ARN" field on the
+      CloudPath Connect page, then click "Save credential".
+    Value: !GetAtt CloudPathScanRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-RoleArn"
+
+  RoleName:
+    Description: The name of the role created.
+    Value: !Ref CloudPathScanRole
+
+  TrustedScannerAccount:
+    Description: The CloudPath scanner account that can assume this role.
+    Value: !Ref ScannerAccountId
+
+  TenantExternalId:
+    Description: The External ID required for assume-role calls (per-tenant).
+    Value: !Ref ExternalId
