@@ -1,0 +1,55 @@
+# ============================================================
+# CloudPath Docker Compose — Phase 1 (PostgreSQL only)
+# ============================================================
+#
+# This file brings up ONLY the PostgreSQL container, intentionally
+# leaving your existing 'neo4j-fyp' container untouched. Both
+# databases will coexist on different ports:
+#   - Neo4j     (your existing container)  bolt://localhost:7687
+#   - PostgreSQL (this new container)      postgresql://localhost:5432
+#
+# Run:
+#   docker-compose -f docker-compose.postgres-only.yml up -d
+#
+# Stop later:
+#   docker-compose -f docker-compose.postgres-only.yml stop
+#
+# Wipe (DEV ONLY — destroys all user data):
+#   docker-compose -f docker-compose.postgres-only.yml down -v
+#
+# Later phases will consolidate everything into a single
+# docker-compose.yml when we Dockerize the Flask app.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cloudpath-postgres
+    ports:
+      # Host port 15432 -> container port 5432. Many Windows Docker
+      # Desktop installations reserve TCP port ranges in the 5000-6000
+      # area for Hyper-V / WSL2, which blocks binding to 5432/5433.
+      # Port 15432 is outside the common reserved ranges and is a
+      # widely-used "PostgreSQL on Windows in Docker" convention.
+      - "15432:5432"
+    environment:
+      POSTGRES_USER: cloudpath
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: cloudpath
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # schema.sql is mounted into PostgreSQL's init directory. It runs
+      # ONLY when the volume is empty (first init). Subsequent restarts
+      # skip it. To reapply schema changes you must either:
+      #   docker-compose down -v        (wipes volume, reruns schema)
+      #   or apply manually via psql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloudpath -d cloudpath"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  postgres_data:

@@ -1,0 +1,30 @@
+id: T1078
+mitre_name: Valid Accounts - Over-Privileged Compute Identity
+tactic: Privilege Escalation
+severity: critical
+description: >
+  A compute resource (EC2 / GCP Instance) is associated with an identity
+  holding excessive privileges. An attacker who compromises the resource
+  can use the instance metadata service to obtain the identity's tokens
+  and escalate to account-wide or project-wide control.
+
+detections:
+  - cloud: aws
+    cypher: |
+      MATCH (i:EC2Instance)-[:ASSOCIATED_WITH|INSTANCE_PROFILE]-(prof:AWSInstanceProfile)
+      MATCH (r:AWSRole)-[:ASSOCIATED_WITH]-(prof)
+      MATCH (r)-[:POLICY]-(p:AWSPolicy)
+      WHERE p.name CONTAINS 'FullAccess'
+         OR p.name CONTAINS 'Administrator'
+      RETURN DISTINCT i.id AS node_id,
+                      'EC2Instance' AS node_type,
+                      r.name + ' / ' + p.name AS detail
+
+  - cloud: gcp
+    cypher: |
+      MATCH (i:GCPInstance)-[:USES_SERVICE_ACCOUNT]->(sa:GCPServiceAccount)-[:HAS_ROLE]->(r:GCPRole)
+      WHERE r.name IN ['roles/editor', 'roles/owner']
+         OR r.name CONTAINS 'admin'
+      RETURN DISTINCT i.name AS node_id,
+                      'GCPInstance' AS node_type,
+                      sa.email + ' / ' + r.name AS detail

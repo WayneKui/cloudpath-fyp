@@ -1,0 +1,27 @@
+id: T1530
+mitre_name: Data from Cloud Storage Object
+tactic: Impact
+severity: critical
+description: >
+  A cloud storage bucket is publicly accessible (anonymous or any
+  authenticated user), allowing data exfiltration. This is direct
+  data exposure that requires no further attacker effort once
+  the bucket is discovered.
+
+detections:
+  - cloud: aws
+    cypher: |
+      MATCH (b:S3Bucket)-[:POLICY_STATEMENT]->(s:S3PolicyStatement)
+      WHERE s.principal CONTAINS '*'
+        AND s.effect = 'Allow'
+      RETURN DISTINCT b.name AS node_id,
+                      'S3Bucket' AS node_type,
+                      s.action AS detail
+
+  - cloud: gcp
+    cypher: |
+      MATCH (b:GCPBucket)-[:IAM_POLICY]->(p:GCPBucketIAMPolicy)
+      WHERE p.is_public = true
+      RETURN DISTINCT b.name AS node_id,
+                      'GCPBucket' AS node_type,
+                      p.role AS detail

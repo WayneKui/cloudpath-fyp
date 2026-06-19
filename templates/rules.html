@@ -1,0 +1,1268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudPath — Rule Manager</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #05080f;
+        --bg2: #0a0f1c;
+        --accent: #00e5ff;
+        --accent2: #5da9e9;
+        --crit: #b14aed;
+        --danger: #ff3860;
+        --warn: #ff8c42;
+        --ok: #2ee6a0;
+        --text: #dfe8f5;
+        --dim: #6b7d96;
+        --border: rgba(93, 169, 233, 0.16);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: "Space Grotesk", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background-image:
+          linear-gradient(rgba(45, 117, 182, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(45, 117, 182, 0.05) 1px, transparent 1px);
+        background-size: 46px 46px;
+        mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
+      }
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        padding: 16px 40px;
+        background: rgba(5, 8, 15, 0.9);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        color: var(--text);
+      }
+      .nav-logo svg {
+        width: 26px;
+        height: 26px;
+        stroke: var(--accent);
+        fill: none;
+        stroke-width: 1.6;
+        filter: drop-shadow(0 0 6px var(--accent));
+      }
+      .nav-links {
+        display: flex;
+        gap: 26px;
+        margin-left: auto;
+        align-items: center;
+      }
+      .nav-links a {
+        color: var(--dim);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: 0.2s;
+      }
+      .nav-links a:hover,
+      .nav-links a.active {
+        color: var(--accent);
+      }
+      .nav-cta {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        padding: 9px 22px;
+        border-radius: 7px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        text-transform: uppercase;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+        transition: 0.2s;
+      }
+      .wrap {
+        position: relative;
+        z-index: 2;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 50px 32px 80px;
+      }
+      .page-tag {
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        letter-spacing: 3px;
+        color: var(--accent);
+        text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .page-title {
+        font-family: "Chakra Petch";
+        font-size: clamp(34px, 5vw, 52px);
+        font-weight: 700;
+        line-height: 1.05;
+        letter-spacing: -0.5px;
+        margin-bottom: 14px;
+      }
+      .page-title .grad {
+        background: linear-gradient(100deg, var(--accent), var(--crit));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .page-sub {
+        font-size: 17px;
+        color: var(--dim);
+        max-width: 680px;
+        line-height: 1.65;
+        margin-bottom: 36px;
+      }
+      .stat-strip {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+      }
+      .pill {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 18px;
+        background: rgba(10, 15, 28, 0.5);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .pill .v {
+        font-family: "Chakra Petch";
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--accent);
+        line-height: 1;
+      }
+      .pill .l {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        color: var(--dim);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .sec-head {
+        margin: 36px 0 18px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+      .sec-head-text {
+        flex: 1;
+        min-width: 260px;
+      }
+      .sec-tag {
+        font-family: "JetBrains Mono";
+        font-size: 12px;
+        letter-spacing: 2.5px;
+        color: var(--accent);
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .sec-title {
+        font-family: "Chakra Petch";
+        font-size: clamp(22px, 2.6vw, 28px);
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .sec-desc {
+        font-size: 14px;
+        color: var(--dim);
+        max-width: 600px;
+        line-height: 1.6;
+      }
+      .rules-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(10, 15, 28, 0.4);
+        overflow: hidden;
+      }
+      .rule-row {
+        display: grid;
+        grid-template-columns: 90px 130px 1fr 110px 110px 110px;
+        gap: 14px;
+        padding: 14px 18px;
+        align-items: center;
+        border-bottom: 1px solid var(--border);
+        transition: 0.2s;
+        font-size: 13px;
+      }
+      .rule-row:last-child {
+        border-bottom: none;
+      }
+      .rule-row:hover {
+        background: rgba(0, 229, 255, 0.04);
+      }
+      .rule-row.editing {
+        background: rgba(0, 229, 255, 0.08);
+        border-left: 3px solid var(--accent);
+      }
+      .rule-row .id {
+        font-family: "JetBrains Mono";
+        font-size: 12px;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .rule-row .name {
+        font-family: "Chakra Petch";
+        font-weight: 600;
+        color: var(--text);
+      }
+      .rule-row .name small {
+        display: block;
+        font-family: "Space Grotesk";
+        font-weight: 400;
+        font-size: 11.5px;
+        color: var(--dim);
+        margin-top: 3px;
+        line-height: 1.4;
+      }
+      .rule-row .tactic {
+        font-family: "Chakra Petch";
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 4px;
+        text-align: center;
+        width: fit-content;
+      }
+      .rule-row .sev {
+        font-family: "Chakra Petch";
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+      .sev-critical {
+        color: var(--crit);
+      }
+      .sev-high {
+        color: var(--warn);
+      }
+      .sev-medium {
+        color: #ffd24d;
+      }
+      .sev-low {
+        color: var(--ok);
+      }
+      .rule-row .cloud {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        color: var(--dim);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .rule-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+      .icon-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--dim);
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        transition: 0.2s;
+      }
+      .icon-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .icon-btn.danger:hover {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+      .list-header {
+        display: grid;
+        grid-template-columns: 90px 130px 1fr 110px 110px 110px;
+        gap: 14px;
+        padding: 10px 18px;
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        color: var(--dim);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--border);
+        background: rgba(5, 8, 15, 0.5);
+      }
+      .builder {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: rgba(10, 15, 28, 0.6);
+        padding: 32px;
+        margin-top: 10px;
+        position: relative;
+        overflow: hidden;
+      }
+      .builder::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent), var(--crit), transparent);
+      }
+      .builder-status {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        color: var(--dim);
+        text-transform: uppercase;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .builder-status.editing {
+        color: var(--warn);
+      }
+      .builder-status::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 8px currentColor;
+      }
+      .mode-tabs {
+        display: flex;
+        gap: 8px;
+        background: rgba(5, 8, 15, 0.5);
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        padding: 5px;
+        margin-bottom: 8px;
+        width: fit-content;
+      }
+      .mode-tab {
+        background: transparent;
+        border: none;
+        color: var(--dim);
+        padding: 11px 24px;
+        font-family: "Chakra Petch";
+        font-weight: 600;
+        font-size: 13px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        cursor: pointer;
+        border-radius: 7px;
+        transition: 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .mode-tab .ico {
+        font-size: 14px;
+      }
+      .mode-tab.active {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        box-shadow: 0 0 18px rgba(0, 229, 255, 0.35);
+      }
+      .mode-tab:not(.active):hover {
+        color: var(--text);
+      }
+      .mode-hint {
+        font-family: "JetBrains Mono";
+        font-size: 12px;
+        color: var(--dim);
+        margin-bottom: 24px;
+      }
+      .swap-section {
+        transition: opacity 0.3s;
+        border-radius: 12px;
+        padding: 18px;
+        margin: 8px -18px 0;
+      }
+      .swap-section.guided-only {
+        background: linear-gradient(135deg, rgba(0, 229, 255, 0.06), rgba(0, 229, 255, 0.02));
+        border: 1px solid rgba(0, 229, 255, 0.18);
+      }
+      .swap-section.adv-only {
+        background: linear-gradient(135deg, rgba(177, 74, 237, 0.07), rgba(177, 74, 237, 0.02));
+        border: 1px solid rgba(177, 74, 237, 0.22);
+        display: none;
+      }
+      .swap-flash {
+        animation: flash 0.6s;
+      }
+      @keyframes flash {
+        0% {
+          transform: scale(0.98);
+          opacity: 0.4;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .swap-label {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 10px;
+        border-radius: 5px;
+        margin-bottom: 16px;
+      }
+      .swap-label.guided {
+        color: var(--accent);
+        background: rgba(0, 229, 255, 0.08);
+        border: 1px solid rgba(0, 229, 255, 0.2);
+      }
+      .swap-label.adv {
+        color: var(--crit);
+        background: rgba(177, 74, 237, 0.08);
+        border: 1px solid rgba(177, 74, 237, 0.25);
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .form-full {
+        grid-column: 1/-1;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+      }
+      .field label {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        color: var(--dim);
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .field input,
+      .field select,
+      .field textarea {
+        background: #020509;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        padding: 13px 15px;
+        color: var(--text);
+        font-family: "JetBrains Mono";
+        font-size: 14px;
+        transition: 0.2s;
+        width: 100%;
+      }
+      .field input:focus,
+      .field select:focus,
+      .field textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.1);
+      }
+      .field textarea {
+        resize: vertical;
+        min-height: 90px;
+      }
+      .field .hint {
+        font-size: 11px;
+        color: var(--dim);
+        margin-top: 6px;
+        font-family: "JetBrains Mono";
+      }
+      .cypher-tools {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .tmpl-btn {
+        background: rgba(177, 74, 237, 0.1);
+        border: 1px solid rgba(177, 74, 237, 0.3);
+        color: #c89fee;
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.2s;
+        letter-spacing: 0.5px;
+      }
+      .tmpl-btn:hover {
+        background: rgba(177, 74, 237, 0.2);
+        color: #fff;
+      }
+      #cypherIn {
+        min-height: 170px;
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        line-height: 1.5;
+        background: #020509;
+        color: #c89fee;
+      }
+      .yaml-preview {
+        background: #020509;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        color: var(--accent);
+        white-space: pre-wrap;
+        margin-top: 24px;
+        line-height: 1.65;
+        min-height: 140px;
+      }
+      .preview-label {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        color: var(--dim);
+        text-transform: uppercase;
+        margin-top: 30px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .preview-label::before {
+        content: "";
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--ok);
+        box-shadow: 0 0 8px var(--ok);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .btn-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 28px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .btn {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        border: none;
+        padding: 14px 30px;
+        border-radius: 9px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        cursor: pointer;
+        box-shadow: 0 0 24px rgba(0, 229, 255, 0.35);
+        transition: 0.2s;
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 36px rgba(0, 229, 255, 0.6);
+      }
+      .btn.ghost {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+        box-shadow: none;
+      }
+      .btn.ghost:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: none;
+      }
+      .btn.warn {
+        background: linear-gradient(135deg, var(--warn), #ff5a35);
+        color: #04121a;
+        box-shadow: 0 0 24px rgba(255, 140, 66, 0.35);
+      }
+      .result-msg {
+        display: none;
+        padding: 14px 18px;
+        border-radius: 10px;
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        flex: 1;
+        min-width: 240px;
+      }
+      .result-msg.ok {
+        display: block;
+        background: rgba(46, 230, 160, 0.1);
+        border: 1px solid rgba(46, 230, 160, 0.3);
+        color: var(--ok);
+      }
+      .result-msg.err {
+        display: block;
+        background: rgba(255, 56, 96, 0.1);
+        border: 1px solid rgba(255, 56, 96, 0.3);
+        color: var(--danger);
+      }
+      .scroll-target {
+        scroll-margin-top: 80px;
+      }
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 40px;
+        text-align: center;
+        color: var(--dim);
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        margin-top: 40px;
+      }
+      @media (max-width: 860px) {
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+        .rule-row,
+        .list-header {
+          grid-template-columns: 80px 1fr 100px;
+        }
+        .rule-row .tactic,
+        .rule-row .sev,
+        .rule-row .cloud,
+        .list-header > :nth-child(2),
+        .list-header > :nth-child(4),
+        .list-header > :nth-child(5) {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/" class="nav-logo"
+        ><svg viewBox="0 0 24 24">
+          <path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+        CloudPath</a
+      >
+      <div class="nav-links">
+        <a href="/">Home</a>
+        {% if current_user.is_authenticated %}
+          <a href="/connect">Connect</a>
+          <a href="/app">Scanner</a>
+          <a href="/rules" class="active">Rules</a>
+          <a href="/docs">Docs</a>
+          <a href="/logout" class="nav-cta">Logout</a>
+        {% else %}
+          <a href="/login" class="nav-cta">Sign in</a>
+        {% endif %}
+      </div>
+    </nav>
+    <div class="wrap">
+      <div class="page-tag">Rule Manager</div>
+      <div class="page-title">Write your own <span class="grad">detection rules.</span></div>
+      <div class="page-sub">
+        CloudPath rules are open YAML files mapped to MITRE ATT&CK. Build them with a guided form,
+        or write the Cypher yourself. The engine picks up every saved rule automatically on the next
+        scan.
+      </div>
+      <div class="stat-strip">
+        <div class="pill">
+          <span class="v" id="activeCount">3</span><span class="l">Active Rules</span>
+        </div>
+        <div class="pill"><span class="v">11</span><span class="l">MITRE Tactics</span></div>
+      </div>
+      <div class="sec-head">
+        <div class="sec-head-text">
+          <div class="sec-tag">Active Detection Rules</div>
+          <div class="sec-title">Currently loaded into the engine.</div>
+          <div class="sec-desc">
+            Click <b>Edit</b> to modify a rule in the builder below, or <b>Delete</b> to remove it.
+          </div>
+        </div>
+        <button class="btn" onclick="newRule()" style="padding: 10px 22px; font-size: 12px">
+          + New Rule
+        </button>
+      </div>
+      <div class="rules-list" id="rulesList">
+        <div class="list-header">
+          <span>ID</span><span>Tactic</span><span>Technique</span><span>Severity</span
+          ><span>Cloud</span><span style="text-align: right">Actions</span>
+        </div>
+      </div>
+      <div class="sec-head scroll-target" id="builderHead">
+        <div class="sec-head-text">
+          <div class="sec-tag" id="builderTag">Create New Rule</div>
+          <div class="sec-title" id="builderTitle">Build a rule.</div>
+          <div class="sec-desc">
+            Switch between Guided (point-and-click) and Advanced (write Cypher directly). The form
+            below the tabs changes based on the mode you pick.
+          </div>
+        </div>
+      </div>
+      <div class="builder">
+        <div class="builder-status" id="builderStatus">New rule &middot; not yet saved</div>
+        <div class="mode-tabs">
+          <button class="mode-tab active" id="modeGuidedBtn" onclick="setMode('guided')">
+            <span class="ico">&#128270;</span> Guided
+          </button>
+          <button class="mode-tab" id="modeAdvBtn" onclick="setMode('advanced')">
+            <span class="ico">&#9881;</span> Advanced &middot; Cypher
+          </button>
+        </div>
+        <div class="mode-hint" id="modeHint">
+          Build a rule by choosing dropdowns. The system writes the Cypher for you.
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Technique ID</label
+            ><input type="text" id="techId" placeholder="T1190" oninput="updateYaml()" />
+          </div>
+          <div class="field">
+            <label>MITRE Name</label
+            ><input
+              type="text"
+              id="techName"
+              placeholder="Exploit Public-Facing Application"
+              oninput="updateYaml()"
+            />
+          </div>
+          <div class="field">
+            <label>Tactic</label>
+            <select id="tactic" onchange="updateYaml()">
+              <option>Initial Access</option>
+              <option>Execution</option>
+              <option>Persistence</option>
+              <option>Privilege Escalation</option>
+              <option>Defense Evasion</option>
+              <option>Credential Access</option>
+              <option>Discovery</option>
+              <option>Lateral Movement</option>
+              <option>Collection</option>
+              <option>Exfiltration</option>
+              <option>Impact</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Severity</label>
+            <select id="severity" onchange="updateYaml()">
+              <option>low</option>
+              <option>medium</option>
+              <option selected>high</option>
+              <option>critical</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Cloud</label>
+            <select id="cloud" onchange="updateYaml()">
+              <option value="aws">AWS</option>
+              <option value="gcp">GCP</option>
+              <option value="multi">Multi-Cloud</option>
+            </select>
+          </div>
+          <div class="field form-full">
+            <label>Description</label
+            ><textarea
+              id="desc"
+              placeholder="Describe what this rule detects and why it matters..."
+              oninput="updateYaml()"
+            ></textarea>
+          </div>
+        </div>
+        <div class="swap-section guided-only" id="guidedSection">
+          <div class="swap-label guided">&#128270; Guided detection &mdash; no code required</div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Resource Type</label>
+              <select id="resource" onchange="updateYaml()">
+                <option value="EC2Instance">EC2 Instance (AWS)</option>
+                <option value="S3Bucket">S3 Bucket (AWS)</option>
+                <option value="AWSRole">IAM Role (AWS)</option>
+                <option value="EC2SecurityGroup">Security Group (AWS)</option>
+                <option value="GCPInstance">Compute Instance (GCP)</option>
+                <option value="GCPBucket">Storage Bucket (GCP)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Condition</label>
+              <select id="condProp" onchange="updateYaml()">
+                <option value="public">is publicly accessible</option>
+                <option value="has-finding">has a security finding</option>
+                <option value="attached-policy">has an attached policy named</option>
+                <option value="open-port">has an open inbound port</option>
+                <option value="principal">has a policy statement principal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Operator</label>
+              <select id="condOp" onchange="updateYaml()">
+                <option value="=">equals</option>
+                <option value="contains">contains</option>
+                <option value="!=">not equals</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Value</label>
+              <input
+                type="text"
+                id="condVal"
+                placeholder="e.g. *  /  FullAccess  /  22"
+                oninput="updateYaml()"
+              />
+            </div>
+          </div>
+          <div class="hint" style="margin-top: 14px; color: var(--accent)">
+            &#10003; The engine translates these choices into Cypher automatically.
+          </div>
+        </div>
+        <div class="swap-section adv-only" id="advSection">
+          <div class="swap-label adv">&#9881; Advanced &mdash; raw Cypher detection</div>
+          <div class="cypher-tools">
+            <button class="tmpl-btn" onclick="loadTemplate('public_storage')">
+              + Public storage
+            </button>
+            <button class="tmpl-btn" onclick="loadTemplate('admin_role')">
+              + Admin role attached
+            </button>
+            <button class="tmpl-btn" onclick="loadTemplate('open_port')">
+              + Open inbound port
+            </button>
+            <button class="tmpl-btn" onclick="loadTemplate('cross_cloud')">
+              + Cross-cloud credential
+            </button>
+            <button class="tmpl-btn" onclick="loadTemplate('blank')">Clear</button>
+          </div>
+          <div class="field form-full">
+            <label>Cypher Detection Pattern</label>
+            <textarea
+              id="cypherIn"
+              oninput="updateYaml()"
+              placeholder="MATCH (n:Label) WHERE n.property = 'value'&#10;RETURN n.id AS node_id, 'Label' AS node_type"
+            ></textarea>
+            <div class="hint">
+              Must return at least: <b>node_id</b>, <b>node_type</b>. Direct access to your Neo4j
+              graph.
+            </div>
+          </div>
+        </div>
+        <div class="preview-label">Live YAML preview &middot; will be saved to /rules/ folder</div>
+        <div class="yaml-preview" id="yamlPreview"></div>
+        <div class="btn-row">
+          <button class="btn" id="saveBtn" onclick="saveRule()">&#43; Save Rule</button>
+          <button class="btn ghost" onclick="resetForm()">Reset</button>
+          <button class="btn ghost" onclick="copyYaml()">Copy YAML</button>
+          <button class="btn warn" id="cancelEditBtn" style="display: none" onclick="cancelEdit()">
+            Cancel Edit
+          </button>
+          <div class="result-msg" id="saveResult"></div>
+        </div>
+      </div>
+    </div>
+    <footer>CloudPath &middot; Multi-Cloud Attack Path Engine &middot; &copy; 2026</footer>
+    <script>
+      const tacticColor = {
+        "Initial Access": "#ff3860",
+        "Privilege Escalation": "#ff8c42",
+        Impact: "#b14aed",
+        "Lateral Movement": "#3742fa",
+        "Credential Access": "#22a6b3",
+        Discovery: "#7f8fa6",
+        "Defense Evasion": "#e056fd",
+        Execution: "#ff6b35",
+        Persistence: "#f0932b",
+        Collection: "#ffb142",
+        Exfiltration: "#ff5252",
+      };
+      let rules = [
+        {
+          id: "T1190",
+          name: "Exploit Public-Facing Application",
+          tactic: "Initial Access",
+          severity: "high",
+          cloud: "aws",
+          desc: "An EC2 instance is in a security group allowing inbound SSH (port 22) from the internet.",
+          mode: "guided",
+          resource: "EC2Instance",
+          condProp: "open-port",
+          condOp: "=",
+          condVal: "22",
+        },
+        {
+          id: "T1078",
+          name: "Valid Accounts - Over-Privileged Role",
+          tactic: "Privilege Escalation",
+          severity: "critical",
+          cloud: "aws",
+          desc: "An EC2 instance carries an IAM role attached to an overly permissive managed policy.",
+          mode: "guided",
+          resource: "EC2Instance",
+          condProp: "attached-policy",
+          condOp: "contains",
+          condVal: "FullAccess",
+        },
+        {
+          id: "T1530",
+          name: "Data from Cloud Storage Object",
+          tactic: "Impact",
+          severity: "critical",
+          cloud: "aws",
+          desc: "An S3 bucket has a policy statement granting access to any principal (public).",
+          mode: "guided",
+          resource: "S3Bucket",
+          condProp: "principal",
+          condOp: "contains",
+          condVal: "*",
+        },
+      ];
+      let editingId = null;
+      function renderRules() {
+        const list = document.getElementById("rulesList");
+        Array.from(list.querySelectorAll(".rule-row")).forEach((r) => r.remove());
+        rules.forEach((r) => {
+          const row = document.createElement("div");
+          row.className = "rule-row" + (editingId === r.id ? " editing" : "");
+          const col = tacticColor[r.tactic] || "#5da9e9";
+          row.innerHTML =
+            '<span class="id">' +
+            r.id +
+            '</span><span class="tactic" style="background:' +
+            col +
+            "22;color:" +
+            col +
+            ";border:1px solid " +
+            col +
+            '44">' +
+            r.tactic +
+            '</span><div class="name">' +
+            r.name +
+            "<small>" +
+            (r.desc || "") +
+            '</small></div><span class="sev sev-' +
+            r.severity +
+            '">' +
+            r.severity.toUpperCase() +
+            '</span><span class="cloud">' +
+            r.cloud.toUpperCase() +
+            '</span><span class="rule-actions"><button class="icon-btn" title="Edit" onclick="editRule(\'' +
+            r.id +
+            '\')">\u270e</button><button class="icon-btn danger" title="Delete" onclick="deleteRule(\'' +
+            r.id +
+            "')\">\u{1F5D1}</button></span>";
+          list.appendChild(row);
+        });
+        document.getElementById("activeCount").textContent = rules.length;
+      }
+      renderRules();
+      let mode = "guided";
+      function setMode(m) {
+        mode = m;
+        document.getElementById("modeGuidedBtn").classList.toggle("active", m === "guided");
+        document.getElementById("modeAdvBtn").classList.toggle("active", m === "advanced");
+        const gs = document.getElementById("guidedSection");
+        const as = document.getElementById("advSection");
+        if (m === "guided") {
+          gs.style.display = "";
+          as.style.display = "none";
+          gs.classList.remove("swap-flash");
+          void gs.offsetWidth;
+          gs.classList.add("swap-flash");
+          document.getElementById("modeHint").textContent =
+            "Build a rule by choosing dropdowns. The system writes the Cypher for you.";
+        } else {
+          gs.style.display = "none";
+          as.style.display = "";
+          as.classList.remove("swap-flash");
+          void as.offsetWidth;
+          as.classList.add("swap-flash");
+          document.getElementById("modeHint").textContent =
+            "Write the Cypher detection pattern directly. Use a template to start fast.";
+        }
+        updateYaml();
+      }
+      const templates = {
+        blank: "",
+        public_storage:
+          "MATCH (b:S3Bucket)-[:POLICY_STATEMENT]->(s:S3PolicyStatement)\nWHERE s.principal CONTAINS '*' AND s.effect = 'Allow'\nRETURN DISTINCT b.name AS node_id, 'S3Bucket' AS node_type, s.action AS detail",
+        admin_role:
+          "MATCH (i:EC2Instance)-[:ASSOCIATED_WITH|INSTANCE_PROFILE]-(prof:AWSInstanceProfile)\nMATCH (r:AWSRole)-[:ASSOCIATED_WITH]-(prof)\nMATCH (r)-[:POLICY]-(p:AWSPolicy)\nWHERE p.name CONTAINS 'FullAccess' OR p.name CONTAINS 'Administrator'\nRETURN DISTINCT i.id AS node_id, 'EC2Instance' AS node_type, r.name AS role_name, p.name AS detail",
+        open_port:
+          "MATCH (i:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)\nMATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(inbound:IpPermissionInbound)\nWHERE inbound.fromport <= 22 AND inbound.toport >= 22\nRETURN DISTINCT i.id AS node_id, 'EC2Instance' AS node_type, i.instanceid AS detail",
+        cross_cloud:
+          "// AWS EC2 holding a GCP service account credential\nMATCH (i:EC2Instance)-[:HAS_SECRET]->(s:AWSSecret)\nWHERE s.value CONTAINS 'service_account.json' OR s.name CONTAINS 'gcp'\nRETURN DISTINCT i.id AS node_id, 'EC2Instance' AS node_type, s.name AS detail",
+      };
+      function loadTemplate(k) {
+        document.getElementById("cypherIn").value = templates[k] || "";
+        updateYaml();
+      }
+      function buildCypherFromGuided() {
+        const r = document.getElementById("resource").value;
+        const p = document.getElementById("condProp").value;
+        const o = document.getElementById("condOp").value;
+        const v = document.getElementById("condVal").value || "<value>";
+        const opMap = { "=": "=", contains: "CONTAINS", "!=": "<>" };
+        switch (p) {
+          case "public":
+            return (
+              "MATCH (n:" +
+              r +
+              ") WHERE n.public = true OR n.publicaccess = true\nRETURN n.id AS node_id, '" +
+              r +
+              "' AS node_type"
+            );
+          case "has-finding":
+            return (
+              "MATCH (n:" +
+              r +
+              ")-[:HAS_FINDING]->(f:Finding) WHERE f.check " +
+              opMap[o] +
+              " '" +
+              v +
+              "'\nRETURN n.id AS node_id, '" +
+              r +
+              "' AS node_type, f.check AS detail"
+            );
+          case "attached-policy":
+            return (
+              "MATCH (n:" +
+              r +
+              ")-[:POLICY]-(p:AWSPolicy) WHERE p.name " +
+              opMap[o] +
+              " '" +
+              v +
+              "'\nRETURN n.id AS node_id, '" +
+              r +
+              "' AS node_type, p.name AS detail"
+            );
+          case "open-port":
+            return (
+              "MATCH (n:" +
+              r +
+              ")-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)\nWHERE rule.fromport <= " +
+              (v || 0) +
+              " AND rule.toport >= " +
+              (v || 0) +
+              "\nRETURN n.id AS node_id, '" +
+              r +
+              "' AS node_type"
+            );
+          case "principal":
+            return (
+              "MATCH (n:" +
+              r +
+              ")-[:POLICY_STATEMENT]->(s) WHERE s.principal " +
+              opMap[o] +
+              " '" +
+              v +
+              "' AND s.effect = 'Allow'\nRETURN n.id AS node_id, '" +
+              r +
+              "' AS node_type, s.action AS detail"
+            );
+        }
+        return "";
+      }
+      function updateYaml() {
+        const id = document.getElementById("techId").value || "T0000";
+        const name = document.getElementById("techName").value || "<MITRE technique name>";
+        const tactic = document.getElementById("tactic").value;
+        const sev = document.getElementById("severity").value;
+        const cloud = document.getElementById("cloud").value;
+        const desc = document.getElementById("desc").value || "<describe what this rule detects>";
+        const cypher =
+          mode === "advanced"
+            ? document.getElementById("cypherIn").value || "<your Cypher query>"
+            : buildCypherFromGuided();
+        document.getElementById("yamlPreview").textContent =
+          "id: " +
+          id +
+          "\nmitre_name: " +
+          name +
+          "\ntactic: " +
+          tactic +
+          "\nseverity: " +
+          sev +
+          "\ncloud: " +
+          cloud +
+          "\ndescription: " +
+          desc +
+          "\ncypher: |\n  " +
+          cypher.split("\n").join("\n  ");
+      }
+      function setBuilderMode(isEditing, rule) {
+        if (isEditing) {
+          document.getElementById("builderTag").textContent = "Edit Rule";
+          document.getElementById("builderTitle").textContent = "Modifying: " + rule.id;
+          document.getElementById("builderStatus").textContent =
+            "EDITING " + rule.id + " \u00b7 changes save back to the same file";
+          document.getElementById("builderStatus").classList.add("editing");
+          document.getElementById("saveBtn").textContent = "Save Changes";
+          document.getElementById("cancelEditBtn").style.display = "";
+        } else {
+          document.getElementById("builderTag").textContent = "Create New Rule";
+          document.getElementById("builderTitle").textContent = "Build a rule.";
+          document.getElementById("builderStatus").textContent = "New rule \u00b7 not yet saved";
+          document.getElementById("builderStatus").classList.remove("editing");
+          document.getElementById("saveBtn").textContent = "+ Save Rule";
+          document.getElementById("cancelEditBtn").style.display = "none";
+        }
+      }
+      function editRule(id) {
+        const r = rules.find((x) => x.id === id);
+        if (!r) return;
+        editingId = id;
+        document.getElementById("techId").value = r.id;
+        document.getElementById("techName").value = r.name;
+        document.getElementById("tactic").value = r.tactic;
+        document.getElementById("severity").value = r.severity;
+        document.getElementById("cloud").value = r.cloud;
+        document.getElementById("desc").value = r.desc || "";
+        if (r.mode === "advanced") {
+          setMode("advanced");
+          document.getElementById("cypherIn").value = r.cypher || "";
+        } else {
+          setMode("guided");
+          if (r.resource) document.getElementById("resource").value = r.resource;
+          if (r.condProp) document.getElementById("condProp").value = r.condProp;
+          if (r.condOp) document.getElementById("condOp").value = r.condOp;
+          if (r.condVal) document.getElementById("condVal").value = r.condVal;
+        }
+        setBuilderMode(true, r);
+        updateYaml();
+        renderRules();
+        document.getElementById("builderHead").scrollIntoView({ behavior: "smooth" });
+      }
+      function cancelEdit() {
+        editingId = null;
+        setBuilderMode(false);
+        resetForm();
+        renderRules();
+      }
+      function deleteRule(id) {
+        if (!confirm("Delete rule " + id + "?")) return;
+        rules = rules.filter((r) => r.id !== id);
+        if (editingId === id) {
+          editingId = null;
+          setBuilderMode(false);
+          resetForm();
+        }
+        renderRules();
+      }
+      function newRule() {
+        editingId = null;
+        setBuilderMode(false);
+        resetForm();
+        document.getElementById("builderHead").scrollIntoView({ behavior: "smooth" });
+      }
+      function saveRule() {
+        const id = document.getElementById("techId").value.trim();
+        if (!id) {
+          showMsg("\u2717 Technique ID is required.", "err");
+          return;
+        }
+        const r = {
+          id,
+          name: document.getElementById("techName").value,
+          tactic: document.getElementById("tactic").value,
+          severity: document.getElementById("severity").value,
+          cloud: document.getElementById("cloud").value,
+          desc: document.getElementById("desc").value,
+          mode,
+          resource: document.getElementById("resource").value,
+          condProp: document.getElementById("condProp").value,
+          condOp: document.getElementById("condOp").value,
+          condVal: document.getElementById("condVal").value,
+          cypher: document.getElementById("cypherIn").value,
+        };
+        if (editingId) {
+          const idx = rules.findIndex((x) => x.id === editingId);
+          if (idx >= 0) rules[idx] = r;
+          showMsg(
+            "\u2713 Rule " + id + " updated. (Backend save endpoint to write YAML coming next.)",
+            "ok",
+          );
+          editingId = null;
+          setBuilderMode(false);
+        } else {
+          if (rules.some((x) => x.id === id)) {
+            showMsg(
+              "\u2717 A rule with ID " + id + " already exists. Edit it or change the ID.",
+              "err",
+            );
+            return;
+          }
+          rules.push(r);
+          showMsg(
+            "\u2713 Rule " + id + " added. (Backend save endpoint to write YAML coming next.)",
+            "ok",
+          );
+        }
+        renderRules();
+        resetForm();
+      }
+      function resetForm() {
+        ["techId", "techName", "condVal", "desc"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+        document.getElementById("cypherIn").value = "";
+        document.getElementById("tactic").selectedIndex = 0;
+        document.getElementById("severity").value = "high";
+        document.getElementById("cloud").value = "aws";
+        document.getElementById("resource").selectedIndex = 0;
+        document.getElementById("condProp").selectedIndex = 0;
+        document.getElementById("condOp").selectedIndex = 0;
+        updateYaml();
+      }
+      function copyYaml() {
+        navigator.clipboard.writeText(document.getElementById("yamlPreview").textContent);
+        showMsg("\u2713 YAML copied to clipboard.", "ok");
+      }
+      function showMsg(t, kind) {
+        const r = document.getElementById("saveResult");
+        r.className = "result-msg " + kind;
+        r.textContent = t;
+        setTimeout(() => (r.className = "result-msg"), 3500);
+      }
+      updateYaml();
+    </script>
+  </body>
+</html>

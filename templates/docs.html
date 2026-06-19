@@ -1,0 +1,1351 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudPath — Docs</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #05080f;
+        --bg2: #0a0f1c;
+        --accent: #00e5ff;
+        --accent2: #5da9e9;
+        --crit: #b14aed;
+        --danger: #ff3860;
+        --warn: #ff8c42;
+        --ok: #2ee6a0;
+        --text: #dfe8f5;
+        --dim: #6b7d96;
+        --border: rgba(93, 169, 233, 0.16);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: "Space Grotesk", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background-image:
+          linear-gradient(rgba(45, 117, 182, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(45, 117, 182, 0.05) 1px, transparent 1px);
+        background-size: 46px 46px;
+        mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(700px circle at 10% 20%, rgba(0, 229, 255, 0.06), transparent 60%),
+          radial-gradient(800px circle at 90% 90%, rgba(177, 74, 237, 0.06), transparent 60%);
+      }
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        padding: 16px 40px;
+        background: rgba(5, 8, 15, 0.9);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        color: var(--text);
+      }
+      .nav-logo svg {
+        width: 26px;
+        height: 26px;
+        stroke: var(--accent);
+        fill: none;
+        stroke-width: 1.6;
+        filter: drop-shadow(0 0 6px var(--accent));
+      }
+      .nav-links {
+        display: flex;
+        gap: 26px;
+        margin-left: auto;
+        align-items: center;
+      }
+      .nav-links a {
+        color: var(--dim);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: 0.2s;
+      }
+      .nav-links a:hover,
+      .nav-links a.active {
+        color: var(--accent);
+      }
+      .nav-cta {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        padding: 9px 22px;
+        border-radius: 7px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        text-transform: uppercase;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+        transition: 0.2s;
+      }
+      .wrap {
+        position: relative;
+        z-index: 2;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 50px 32px 100px;
+      }
+      .page-tag {
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        letter-spacing: 3px;
+        color: var(--accent);
+        text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .page-title {
+        font-family: "Chakra Petch";
+        font-size: clamp(38px, 5.5vw, 60px);
+        font-weight: 700;
+        line-height: 1.02;
+        letter-spacing: -0.6px;
+        margin-bottom: 16px;
+      }
+      .page-title .grad {
+        background: linear-gradient(100deg, var(--accent), var(--crit));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .page-sub {
+        font-size: 18px;
+        color: var(--dim);
+        max-width: 720px;
+        line-height: 1.65;
+        margin-bottom: 50px;
+      }
+      .docs-layout {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 48px;
+        align-items: flex-start;
+      }
+      .toc {
+        position: sticky;
+        top: 90px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(10, 15, 28, 0.55);
+        padding: 22px;
+        backdrop-filter: blur(8px);
+      }
+      .toc-title {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 2px;
+        color: var(--accent);
+        text-transform: uppercase;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .toc-title::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+      }
+      .toc-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .toc-list a {
+        display: block;
+        color: var(--dim);
+        text-decoration: none;
+        font-size: 13.5px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        transition: 0.2s;
+        border-left: 2px solid transparent;
+      }
+      .toc-list a:hover {
+        background: rgba(0, 229, 255, 0.06);
+        color: var(--text);
+      }
+      .toc-list a.active {
+        color: var(--accent);
+        background: rgba(0, 229, 255, 0.08);
+        border-left-color: var(--accent);
+      }
+      .content {
+        min-width: 0;
+      }
+      .content section {
+        margin-bottom: 80px;
+        scroll-margin-top: 90px;
+      }
+      .sec-header {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+        position: relative;
+      }
+      .sec-header::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 140px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent), transparent);
+      }
+      .sec-num {
+        width: 54px;
+        height: 54px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        font-family: "Chakra Petch";
+        font-size: 20px;
+        font-weight: 700;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .sec-num.c1 {
+        background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 229, 255, 0.05));
+        color: var(--accent);
+        border: 1px solid rgba(0, 229, 255, 0.3);
+        box-shadow: 0 0 24px rgba(0, 229, 255, 0.2);
+      }
+      .sec-num.c2 {
+        background: linear-gradient(135deg, rgba(46, 230, 160, 0.15), rgba(46, 230, 160, 0.05));
+        color: var(--ok);
+        border: 1px solid rgba(46, 230, 160, 0.3);
+        box-shadow: 0 0 24px rgba(46, 230, 160, 0.18);
+      }
+      .sec-num.c3 {
+        background: linear-gradient(135deg, rgba(255, 140, 66, 0.15), rgba(255, 140, 66, 0.05));
+        color: var(--warn);
+        border: 1px solid rgba(255, 140, 66, 0.3);
+        box-shadow: 0 0 24px rgba(255, 140, 66, 0.18);
+      }
+      .sec-num.c4 {
+        background: linear-gradient(135deg, rgba(177, 74, 237, 0.15), rgba(177, 74, 237, 0.05));
+        color: var(--crit);
+        border: 1px solid rgba(177, 74, 237, 0.3);
+        box-shadow: 0 0 24px rgba(177, 74, 237, 0.18);
+      }
+      .sec-num.c5 {
+        background: linear-gradient(135deg, rgba(93, 169, 233, 0.15), rgba(93, 169, 233, 0.05));
+        color: var(--accent2);
+        border: 1px solid rgba(93, 169, 233, 0.3);
+        box-shadow: 0 0 24px rgba(93, 169, 233, 0.18);
+      }
+      .sec-titleblock h2 {
+        font-family: "Chakra Petch";
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+      .sec-titleblock .lead {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 2px;
+        color: var(--dim);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+      .content p {
+        color: var(--text);
+        font-size: 15.5px;
+        line-height: 1.8;
+        margin-bottom: 14px;
+      }
+      .content p .dim {
+        color: var(--dim);
+      }
+      .content h3 {
+        font-family: "Chakra Petch";
+        font-size: 21px;
+        font-weight: 600;
+        margin: 36px 0 14px;
+        color: var(--accent2);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .content h3::before {
+        content: "";
+        width: 4px;
+        height: 18px;
+        border-radius: 2px;
+        background: linear-gradient(180deg, var(--accent), var(--accent2));
+      }
+      .content a {
+        color: var(--accent);
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(0, 229, 255, 0.4);
+      }
+      .content a:hover {
+        border-bottom-style: solid;
+      }
+      .feat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        margin: 20px 0;
+      }
+      .feat-card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        background: rgba(10, 15, 28, 0.55);
+        display: flex;
+        gap: 14px;
+        transition: 0.3s;
+      }
+      .feat-card:hover {
+        border-color: var(--accent2);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 229, 255, 0.08);
+      }
+      .feat-card .fi {
+        width: 42px;
+        height: 42px;
+        border-radius: 11px;
+        display: grid;
+        place-items: center;
+        background: rgba(0, 229, 255, 0.1);
+        border: 1px solid var(--border);
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+      .feat-card h4 {
+        font-family: "Chakra Petch";
+        font-size: 15px;
+        margin-bottom: 5px;
+      }
+      .feat-card p {
+        font-size: 13px;
+        color: var(--dim);
+        line-height: 1.6;
+        margin: 0;
+      }
+      .journey {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin: 24px 0;
+        position: relative;
+      }
+      .j-step {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+        background: rgba(10, 15, 28, 0.5);
+        position: relative;
+        transition: 0.3s;
+        text-decoration: none;
+        color: var(--text);
+        display: block;
+      }
+      .j-step:hover {
+        border-color: var(--accent);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 28px rgba(0, 229, 255, 0.12);
+      }
+      .j-step .badge {
+        font-family: "JetBrains Mono";
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        color: var(--accent);
+        background: rgba(0, 229, 255, 0.08);
+        border: 1px solid var(--border);
+        padding: 3px 8px;
+        border-radius: 5px;
+        display: inline-block;
+        margin-bottom: 10px;
+      }
+      .j-step h4 {
+        font-family: "Chakra Petch";
+        font-size: 16px;
+        margin-bottom: 6px;
+      }
+      .j-step p {
+        font-size: 12.5px;
+        color: var(--dim);
+        line-height: 1.55;
+        margin: 0;
+      }
+      .j-step::after {
+        content: "\2192";
+        position: absolute;
+        right: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--accent);
+        font-size: 18px;
+        font-weight: 700;
+        z-index: 2;
+      }
+      .j-step:last-child::after {
+        display: none;
+      }
+      .layers {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin: 24px 0;
+      }
+      .layer {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        background: rgba(10, 15, 28, 0.55);
+        transition: 0.3s;
+        border-top: 3px solid;
+      }
+      .layer:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 14px 32px rgba(0, 229, 255, 0.1);
+      }
+      .layer.l1 {
+        border-top-color: var(--warn);
+      }
+      .layer.l2 {
+        border-top-color: var(--accent2);
+      }
+      .layer.l3 {
+        border-top-color: var(--accent);
+      }
+      .layer .lico {
+        font-size: 28px;
+        margin-bottom: 12px;
+      }
+      .layer h4 {
+        font-family: "Chakra Petch";
+        font-size: 18px;
+        margin-bottom: 8px;
+      }
+      .layer .role {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        color: var(--accent);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .layer p {
+        font-size: 13.5px;
+        color: var(--dim);
+        line-height: 1.6;
+        margin: 0;
+      }
+      .code {
+        margin: 20px 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #020509;
+      }
+      .code-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        background: rgba(10, 15, 28, 0.7);
+        border-bottom: 1px solid var(--border);
+        font-family: "JetBrains Mono";
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .code-head .dots {
+        display: flex;
+        gap: 6px;
+      }
+      .code-head .dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .code-head .dots span:nth-child(1) {
+        background: #ff5f57;
+      }
+      .code-head .dots span:nth-child(2) {
+        background: #febc2e;
+      }
+      .code-head .dots span:nth-child(3) {
+        background: #28c840;
+      }
+      .code-head .fname {
+        color: var(--text);
+        letter-spacing: 0.5px;
+      }
+      .code-head .tag {
+        margin-left: auto;
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: rgba(0, 229, 255, 0.08);
+        padding: 3px 8px;
+        border-radius: 5px;
+      }
+      .code pre {
+        padding: 18px 20px;
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        color: var(--accent);
+        line-height: 1.65;
+        overflow-x: auto;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        margin: 0;
+      }
+      pre .key {
+        color: #ffd24d;
+      }
+      pre .str {
+        color: #2ee6a0;
+      }
+      pre .com {
+        color: var(--dim);
+        font-style: italic;
+      }
+      pre .op {
+        color: #ff8c42;
+      }
+      code {
+        background: rgba(0, 229, 255, 0.08);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 2px 7px;
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        color: var(--accent);
+      }
+      .formula {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr auto 1fr;
+        gap: 14px;
+        margin: 20px 0;
+        align-items: stretch;
+      }
+      .formula .term {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        background: rgba(10, 15, 28, 0.5);
+        text-align: center;
+        transition: 0.3s;
+      }
+      .formula .term:hover {
+        border-color: var(--accent);
+        transform: scale(1.03);
+      }
+      .formula .term .label {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        color: var(--accent);
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .formula .term .val {
+        font-family: "Chakra Petch";
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .formula .term .hint {
+        font-size: 11.5px;
+        color: var(--dim);
+        line-height: 1.4;
+      }
+      .formula .op {
+        display: grid;
+        place-items: center;
+        font-family: "Chakra Petch";
+        font-size: 24px;
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .formula-result {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        margin-top: 14px;
+        padding: 18px;
+        border: 1px solid rgba(0, 229, 255, 0.3);
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(0, 229, 255, 0.06), rgba(177, 74, 237, 0.06));
+      }
+      .formula-result .lbl {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        color: var(--accent);
+        text-transform: uppercase;
+      }
+      .formula-result .score {
+        font-family: "Chakra Petch";
+        font-size: 32px;
+        font-weight: 700;
+        background: linear-gradient(100deg, var(--accent), var(--crit));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .note {
+        border-left: 3px solid var(--accent);
+        background: rgba(0, 229, 255, 0.05);
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin: 18px 0;
+      }
+      .note b {
+        color: var(--accent);
+        font-family: "JetBrains Mono";
+        font-size: 12px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 6px;
+      }
+      .note p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--text);
+        line-height: 1.7;
+      }
+      .note.warn {
+        border-left-color: var(--warn);
+        background: rgba(255, 140, 66, 0.05);
+      }
+      .note.warn b {
+        color: var(--warn);
+      }
+      .modes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin: 20px 0;
+      }
+      .mode-box {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 22px;
+        transition: 0.3s;
+      }
+      .mode-box.guided {
+        background: linear-gradient(135deg, rgba(0, 229, 255, 0.06), rgba(0, 229, 255, 0.02));
+        border-color: rgba(0, 229, 255, 0.2);
+      }
+      .mode-box.adv {
+        background: linear-gradient(135deg, rgba(177, 74, 237, 0.06), rgba(177, 74, 237, 0.02));
+        border-color: rgba(177, 74, 237, 0.25);
+      }
+      .mode-box:hover {
+        transform: translateY(-3px);
+      }
+      .mode-box .mb-ico {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+      .mode-box h4 {
+        font-family: "Chakra Petch";
+        font-size: 17px;
+        margin-bottom: 8px;
+      }
+      .mode-box .who {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 12px;
+      }
+      .mode-box.adv .who {
+        color: var(--crit);
+      }
+      .mode-box ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .mode-box li {
+        font-size: 13.5px;
+        color: var(--dim);
+        line-height: 1.7;
+        margin-bottom: 6px;
+      }
+      .mode-box li b {
+        color: var(--text);
+      }
+      .faq {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .qa {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(10, 15, 28, 0.45);
+        overflow: hidden;
+        transition: 0.3s;
+      }
+      .qa:hover {
+        border-color: var(--accent2);
+      }
+      .qa summary {
+        cursor: pointer;
+        padding: 18px 22px;
+        font-family: "Chakra Petch";
+        font-size: 16px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        list-style: none;
+      }
+      .qa summary::-webkit-details-marker {
+        display: none;
+      }
+      .qa summary .qmark {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: rgba(0, 229, 255, 0.1);
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+        font-family: "JetBrains Mono";
+        font-size: 14px;
+        flex-shrink: 0;
+        border: 1px solid var(--border);
+        transition: 0.2s;
+      }
+      .qa[open] summary .qmark {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        transform: rotate(45deg);
+      }
+      .qa summary .arrow {
+        margin-left: auto;
+        color: var(--dim);
+        transition: 0.2s;
+        font-size: 14px;
+      }
+      .qa[open] summary .arrow {
+        transform: rotate(180deg);
+        color: var(--accent);
+      }
+      .qa .a {
+        padding: 0 22px 20px 64px;
+        font-size: 14.5px;
+        color: var(--text);
+        line-height: 1.75;
+      }
+      .qa .a code {
+        font-size: 12px;
+      }
+      .reveal {
+        opacity: 0;
+        transform: translateY(20px);
+        transition:
+          opacity 0.7s,
+          transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .reveal.in {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 40px;
+        text-align: center;
+        color: var(--dim);
+        font-family: "JetBrains Mono";
+        font-size: 13px;
+        margin-top: 60px;
+      }
+      @media (max-width: 900px) {
+        .docs-layout {
+          grid-template-columns: 1fr;
+        }
+        .toc {
+          position: relative;
+          top: auto;
+        }
+        .feat-grid,
+        .layers,
+        .journey,
+        .formula,
+        .modes {
+          grid-template-columns: 1fr;
+        }
+        .j-step::after,
+        .formula .op {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/" class="nav-logo"
+        ><svg viewBox="0 0 24 24">
+          <path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+        CloudPath</a
+      >
+      <div class="nav-links">
+        <a href="/">Home</a>
+        {% if current_user.is_authenticated %}
+          <a href="/connect">Connect</a>
+          <a href="/app">Scanner</a>
+          <a href="/rules">Rules</a>
+          <a href="/docs" class="active">Docs</a>
+          <a href="/logout" class="nav-cta">Logout</a>
+        {% else %}
+          <a href="/login" class="nav-cta">Sign in</a>
+        {% endif %}
+      </div>
+    </nav>
+    <div class="wrap">
+      <div class="page-tag">Documentation</div>
+      <div class="page-title">How <span class="grad">CloudPath</span> works.</div>
+      <div class="page-sub">
+        A practical guide to using CloudPath &mdash; from connecting your cloud, to running scans,
+        to writing custom detection rules. If you're new, start with the Quick Start and work your
+        way down.
+      </div>
+      <div class="docs-layout">
+        <aside class="toc">
+          <div class="toc-title">On This Page</div>
+          <ul class="toc-list" id="tocList">
+            <li><a href="#what" class="active">What is CloudPath?</a></li>
+            <li><a href="#quickstart">Quick Start</a></li>
+            <li><a href="#engine">How the Engine Works</a></li>
+            <li><a href="#writing">Writing Custom Rules</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </aside>
+        <main class="content">
+          <section id="what" class="reveal">
+            <div class="sec-header">
+              <div class="sec-num c1">01</div>
+              <div class="sec-titleblock">
+                <div class="lead">Overview</div>
+                <h2>What is CloudPath?</h2>
+              </div>
+            </div>
+            <p>
+              CloudPath is a <b>multi-cloud attack path engine</b>. It scans your AWS and GCP
+              accounts for security misconfigurations, builds a graph of how everything in your
+              cloud connects, then correlates the misconfigurations into <b>attack paths</b> &mdash;
+              chains of weaknesses an attacker could exploit to move from the internet to your
+              sensitive data.
+            </p>
+            <p>
+              Most security tools give you a flat list of hundreds of issues. CloudPath answers the
+              more useful question:
+              <span class="dim"
+                ><i
+                  >"out of all these issues, which combinations actually let an attacker reach our
+                  data?"</i
+                ></span
+              >
+            </p>
+            <h3>What you get</h3>
+            <div class="feat-grid">
+              <div class="feat-card">
+                <div class="fi">&#127919;</div>
+                <div>
+                  <h4>MITRE ATT&CK Paths</h4>
+                  <p>Attack paths mapped to the standard adversary framework.</p>
+                </div>
+              </div>
+              <div class="feat-card">
+                <div class="fi">&#128202;</div>
+                <div>
+                  <h4>CVSS Risk Scores</h4>
+                  <p>Transparent 0&ndash;10 scores so you know what to fix first.</p>
+                </div>
+              </div>
+              <div class="feat-card">
+                <div class="fi">&#128279;</div>
+                <div>
+                  <h4>Interactive Graph</h4>
+                  <p>Each path drawn as a live visual you can explore.</p>
+                </div>
+              </div>
+              <div class="feat-card">
+                <div class="fi">&#9881;</div>
+                <div>
+                  <h4>Open YAML Rules</h4>
+                  <p>Every rule is readable, editable, and extensible.</p>
+                </div>
+              </div>
+            </div>
+            <div class="note">
+              <b>Scope</b>
+              <p>
+                CloudPath analyzes cloud <i>configuration</i> (posture) &mdash; what's set up, what
+                permissions exist, what's exposed. It does not monitor live activity or runtime
+                behavior. Runtime monitoring is identified as future work.
+              </p>
+            </div>
+          </section>
+          <section id="quickstart" class="reveal">
+            <div class="sec-header">
+              <div class="sec-num c2">02</div>
+              <div class="sec-titleblock">
+                <div class="lead">Getting started</div>
+                <h2>Quick Start</h2>
+              </div>
+            </div>
+            <p>
+              Get from zero to a working attack path scan in four steps. The whole journey takes
+              about ten minutes.
+            </p>
+            <div class="journey">
+              <a class="j-step" href="/connect"
+                ><span class="badge">STEP 01</span>
+                <h4>Connect</h4>
+                <p>
+                  Deploy our role template in your cloud account, paste back the Role ARN or key.
+                </p></a
+              >
+              <a class="j-step" href="/app"
+                ><span class="badge">STEP 02</span>
+                <h4>Open Scanner</h4>
+                <p>
+                  Click <code>Run Scan</code>. Prowler and Cartography do their work in sequence.
+                </p></a
+              >
+              <a class="j-step" href="/app"
+                ><span class="badge">STEP 03</span>
+                <h4>Read Paths</h4>
+                <p>
+                  The graph and panel show each attack path with steps, techniques, and scores.
+                </p></a
+              >
+              <a class="j-step" href="/rules"
+                ><span class="badge">STEP 04</span>
+                <h4>(Optional) Rules</h4>
+                <p>Add or edit detection rules. The engine picks them up automatically.</p></a
+              >
+            </div>
+            <h3>Connecting Clouds</h3>
+            <p>
+              CloudPath uses <b>read-only</b> access. For AWS, you deploy a CloudFormation template
+              that creates an IAM role trusting CloudPath &mdash; no access keys are ever shared.
+              For GCP, you provide a read-only service account key with the Viewer and Security
+              Reviewer roles.
+            </p>
+            <p>
+              Head to the <a href="/connect">Connect page</a> for the click-by-click flow. It takes
+              about 5 minutes per cloud and is a one-time setup.
+            </p>
+            <h3>Running a Scan</h3>
+            <p>
+              From the <a href="/app">Scanner page</a>, clicking <code>Run Scan</code> does three
+              things in sequence:
+            </p>
+            <div class="feat-grid">
+              <div class="feat-card">
+                <div class="fi">&#128270;</div>
+                <div>
+                  <h4>Prowler</h4>
+                  <p>Checks hundreds of misconfigurations and outputs JSON findings.</p>
+                </div>
+              </div>
+              <div class="feat-card">
+                <div class="fi">&#128190;</div>
+                <div>
+                  <h4>Cartography</h4>
+                  <p>Ingests your cloud resources and relationships into Neo4j as a graph.</p>
+                </div>
+              </div>
+              <div class="feat-card">
+                <div class="fi">&#129504;</div>
+                <div>
+                  <h4>Engine</h4>
+                  <p>Merges findings with the graph and applies detection rules.</p>
+                </div>
+              </div>
+              <div class="feat-card">
+                <div class="fi">&#128279;</div>
+                <div>
+                  <h4>Chain</h4>
+                  <p>Links matched techniques into MITRE-mapped attack paths with CVSS scores.</p>
+                </div>
+              </div>
+            </div>
+            <div class="note warn">
+              <b>Performance</b>
+              <p>
+                A full scan against a real cloud account typically takes 2&ndash;5 minutes. The
+                button shows a live scan-sweep so you know it's working.
+              </p>
+            </div>
+            <h3>Reading the Results</h3>
+            <p>
+              The Scanner page shows your paths in two views: an interactive <b>graph</b> on the
+              left where nodes are colored by MITRE tactic and connected by red arrows showing
+              attacker movement, and a <b>detail panel</b> on the right with each path's CVSS score,
+              severity label, exploitability, impact, and step-by-step kill chain.
+            </p>
+          </section>
+          <section id="engine" class="reveal">
+            <div class="sec-header">
+              <div class="sec-num c3">03</div>
+              <div class="sec-titleblock">
+                <div class="lead">Under the hood</div>
+                <h2>How the Engine Works</h2>
+              </div>
+            </div>
+            <p>Three layers work together, each doing one job well:</p>
+            <div class="layers">
+              <div class="layer l1">
+                <div class="lico">&#128270;</div>
+                <div class="role">Layer 1</div>
+                <h4>Prowler</h4>
+                <p>
+                  Multi-cloud misconfiguration scanner. Identifies <i>what's wrong</i> with each
+                  resource individually. Hundreds of CIS-aligned checks shipped out of the box.
+                </p>
+              </div>
+              <div class="layer l2">
+                <div class="lico">&#128190;</div>
+                <div class="role">Layer 2</div>
+                <h4>Cartography</h4>
+                <p>
+                  Open-source mapper that loads your cloud's resources and relationships into a
+                  Neo4j graph database. <i>How everything connects.</i>
+                </p>
+              </div>
+              <div class="layer l3">
+                <div class="lico">&#129504;</div>
+                <div class="role">Layer 3</div>
+                <h4>Engine</h4>
+                <p>
+                  Loads your detection rules, finds MITRE techniques in the graph, then
+                  <b>chains them into attack paths</b> with DFS + BFS reachability.
+                </p>
+              </div>
+            </div>
+            <h3>Detection Rules</h3>
+            <p>
+              A detection rule is a YAML file in the <code>/rules</code> folder. Each rule says
+              <i
+                >"this MITRE technique exists when this Cypher pattern matches a node in the
+                graph."</i
+              >
+              Example:
+            </p>
+            <div class="code">
+              <div class="code-head">
+                <div class="dots"><span></span><span></span><span></span></div>
+                <span class="fname">T1190_public_ec2_entry.yaml</span><span class="tag">YAML</span>
+              </div>
+              <pre><span class="key">id:</span> <span class="str">T1190</span>
+<span class="key">mitre_name:</span> <span class="str">Exploit Public-Facing Application</span>
+<span class="key">tactic:</span> <span class="str">Initial Access</span>
+<span class="key">severity:</span> <span class="str">high</span>
+<span class="key">cloud:</span> <span class="str">aws</span>
+<span class="key">cypher:</span> |
+  MATCH (i:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+  MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
+  WHERE rule.fromport <span class="op"><=</span> 22 AND rule.toport <span class="op">>=</span> 22
+  RETURN DISTINCT i.id AS node_id, <span class="str">'EC2Instance'</span> AS node_type</pre>
+            </div>
+            <p>
+              The engine loads every YAML file in the folder. To add a rule, drop a file in directly
+              or use the <a href="/rules">Rules page builder</a>.
+            </p>
+            <h3>Chaining and Scoring</h3>
+            <p>Once individual techniques are detected, the chainer links them by:</p>
+            <ul style="margin: 8px 0 18px 4px; padding-left: 22px">
+              <li style="color: var(--text); font-size: 15px; line-height: 1.8; margin-bottom: 8px">
+                <b style="color: var(--accent)">Shared node</b> &mdash; two techniques on the same
+                resource chain together
+              </li>
+              <li style="color: var(--text); font-size: 15px; line-height: 1.8">
+                <b style="color: var(--accent)">Graph reachability</b> &mdash; a privileged compute
+                node whose role can reach a target storage bucket through the policy graph chains to
+                that bucket
+              </li>
+            </ul>
+            <p>
+              The chainer is a <b>depth-first traversal</b>, respecting MITRE tactic order so paths
+              flow forward (Initial Access &rarr; Privilege Escalation &rarr; Impact).
+            </p>
+            <p>Each path is scored on a CVSS-aligned scale:</p>
+            <div class="formula">
+              <div class="term">
+                <div class="label">Exploitability</div>
+                <div class="val">0.68</div>
+                <div class="hint">Entry vector, length factor</div>
+              </div>
+              <div class="op">&times;</div>
+              <div class="term">
+                <div class="label">Impact</div>
+                <div class="val">0.90</div>
+                <div class="hint">CIA + worst severity</div>
+              </div>
+              <div class="op">&times;</div>
+              <div class="term">
+                <div class="label">Context</div>
+                <div class="val">1.00</div>
+                <div class="hint">1.2&times; if cross-cloud</div>
+              </div>
+            </div>
+            <div class="formula-result">
+              <div class="lbl">Path Score</div>
+              <div class="score">6.1 / 10</div>
+              <div class="lbl">Medium</div>
+            </div>
+            <div class="note">
+              <b>Why CVSS?</b>
+              <p>
+                CVSS is the industry-standard open framework maintained by FIRST and used by
+                commercial platforms like Wiz and Orca. Using it makes CloudPath's scores
+                transparent, comparable, and defensible.
+              </p>
+            </div>
+          </section>
+          <section id="writing" class="reveal">
+            <div class="sec-header">
+              <div class="sec-num c4">04</div>
+              <div class="sec-titleblock">
+                <div class="lead">Make it yours</div>
+                <h2>Writing Custom Rules</h2>
+              </div>
+            </div>
+            <p>
+              CloudPath ships with a starter set of rules, but its real value is that
+              <b>you can write your own</b>. There are two ways &mdash; pick the one that matches
+              you.
+            </p>
+            <div class="modes">
+              <div class="mode-box guided">
+                <div class="mb-ico">&#128270;</div>
+                <div class="who">For everyone</div>
+                <h4>Guided Mode</h4>
+                <ul>
+                  <li><b>Identity:</b> Technique ID, MITRE name, tactic, severity, cloud</li>
+                  <li><b>Resource type:</b> the kind of node to detect</li>
+                  <li>
+                    <b>Condition:</b> public, has finding, attached policy, open port, principal
+                  </li>
+                  <li>
+                    <b>Value:</b> e.g. <code>22</code> for port, <code>*</code> for any principal
+                  </li>
+                </ul>
+                <p style="margin-top: 12px; font-size: 13px; color: var(--dim); line-height: 1.6">
+                  The system translates those choices into valid Cypher behind the scenes.
+                </p>
+              </div>
+              <div class="mode-box adv">
+                <div class="mb-ico">&#9881;</div>
+                <div class="who">For power users</div>
+                <h4>Advanced &middot; Cypher</h4>
+                <ul>
+                  <li>Full access to <b>all node labels, properties, and relationships</b></li>
+                  <li>Must return <code>node_id</code> and <code>node_type</code></li>
+                  <li>Optional <code>detail</code> for human-readable context</li>
+                  <li>Start from one of four built-in templates</li>
+                </ul>
+                <p style="margin-top: 12px; font-size: 13px; color: var(--dim); line-height: 1.6">
+                  Use when guided conditions aren't expressive enough for your detection.
+                </p>
+              </div>
+            </div>
+            <p>Here's a real Cypher rule from the starter set:</p>
+            <div class="code">
+              <div class="code-head">
+                <div class="dots"><span></span><span></span><span></span></div>
+                <span class="fname">T1530_public_s3_bucket.yaml</span
+                ><span class="tag">CYPHER</span>
+              </div>
+              <pre><span class="com">// Detect a public S3 bucket via its policy statement</span>
+MATCH (b:S3Bucket)-[:POLICY_STATEMENT]->(s:S3PolicyStatement)
+WHERE s.principal <span class="key">CONTAINS</span> <span class="str">'*'</span> <span class="key">AND</span> s.effect = <span class="str">'Allow'</span>
+RETURN DISTINCT b.name AS node_id,
+                <span class="str">'S3Bucket'</span> AS node_type,
+                s.action AS detail</pre>
+            </div>
+            <p>
+              The Rules page has template buttons for common patterns:
+              <i>public storage, admin role attached, open inbound port, cross-cloud credential</i>.
+              Use them as starting points.
+            </p>
+            <div class="note warn">
+              <b>Test before you trust</b>
+              <p>
+                New rules should be tested against a known dataset before being trusted. Run a scan,
+                confirm the rule fires when it should, and that it doesn't produce false positives
+                on resources you know are safe.
+              </p>
+            </div>
+          </section>
+          <section id="faq" class="reveal">
+            <div class="sec-header">
+              <div class="sec-num c5">05</div>
+              <div class="sec-titleblock">
+                <div class="lead">Common questions</div>
+                <h2>FAQ</h2>
+              </div>
+            </div>
+            <div class="faq">
+              <details class="qa">
+                <summary>
+                  <span class="qmark">+</span> Does CloudPath store my cloud credentials?
+                  <span class="arrow">&#9662;</span>
+                </summary>
+                <div class="a">
+                  For AWS, no &mdash; CloudPath uses cross-account role assumption, which only
+                  requires your Role ARN (a public identifier). Temporary credentials are generated
+                  per scan and expire within an hour. For GCP, the service account key file is
+                  stored encrypted and used only for read-only API calls.
+                </div>
+              </details>
+              <details class="qa">
+                <summary>
+                  <span class="qmark">+</span> Can CloudPath modify my cloud?
+                  <span class="arrow">&#9662;</span>
+                </summary>
+                <div class="a">
+                  No. The role and service account both use read-only permissions
+                  (<code>SecurityAudit</code>, <code>ReadOnlyAccess</code>, <code>Viewer</code>,
+                  <code>Security Reviewer</code>). CloudPath analyzes posture; it does not remediate
+                  or change anything.
+                </div>
+              </details>
+              <details class="qa">
+                <summary>
+                  <span class="qmark">+</span> How is this different from AWS Security Hub or GCP
+                  Security Command Center? <span class="arrow">&#9662;</span>
+                </summary>
+                <div class="a">
+                  Native tools cover a single cloud and present findings mostly as flat lists.
+                  CloudPath is multi-cloud, correlates findings into MITRE-mapped attack
+                  <i>paths</i>, and its rules are open and editable. Where native tools tell you
+                  <i>what's wrong</i>, CloudPath shows you
+                  <i>how an attacker could chain those weaknesses into a real attack</i>.
+                </div>
+              </details>
+              <details class="qa">
+                <summary>
+                  <span class="qmark">+</span> Why YAML rules and not a UI database?
+                  <span class="arrow">&#9662;</span>
+                </summary>
+                <div class="a">
+                  Open YAML files are readable, diffable in Git, easy to share, and impossible to
+                  lock you in. The Rule Manager page is just a convenience layer that writes the
+                  same YAML files you could write by hand.
+                </div>
+              </details>
+              <details class="qa">
+                <summary>
+                  <span class="qmark">+</span> How accurate is the risk score?
+                  <span class="arrow">&#9662;</span>
+                </summary>
+                <div class="a">
+                  The score follows CVSS principles (FIRST.org), the same foundation used by Wiz and
+                  Orca. It is heuristic &mdash; context and judgment matter. CloudPath shows the
+                  score's breakdown (exploitability, impact, length, internet entry) so you can see
+                  <i>why</i> a path scored as it did, and recalibrate if needed.
+                </div>
+              </details>
+              <details class="qa">
+                <summary>
+                  <span class="qmark">+</span> Can I run CloudPath without GCP?
+                  <span class="arrow">&#9662;</span>
+                </summary>
+                <div class="a">
+                  Yes &mdash; AWS-only scans work fine. GCP support is additive and only activates
+                  if you've connected a GCP project.
+                </div>
+              </details>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+    <footer>CloudPath &middot; Multi-Cloud Attack Path Engine &middot; &copy; 2026</footer>
+    <script>
+      const links = document.querySelectorAll(".toc-list a");
+      const sections = Array.from(links)
+        .map((a) => document.querySelector(a.getAttribute("href")))
+        .filter(Boolean);
+      function updateActive() {
+        const y = window.scrollY + 140;
+        let active = null;
+        sections.forEach((s, i) => {
+          if (s.offsetTop <= y) active = i;
+        });
+        links.forEach((a) => a.classList.remove("active"));
+        if (active != null) links[active].classList.add("active");
+      }
+      window.addEventListener("scroll", updateActive, { passive: true });
+      updateActive();
+      const obs = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("in");
+              obs.unobserve(e.target);
+            }
+          });
+        },
+        { threshold: 0.1 },
+      );
+      document.querySelectorAll(".reveal").forEach((el) => obs.observe(el));
+    </script>
+  </body>
+</html>

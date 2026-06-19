@@ -1,0 +1,43 @@
+id: T1190
+mitre_name: Exploit Public-Facing Application
+tactic: Initial Access
+severity: high
+description: >
+  A compute resource is configured such that its network exposes a sensitive
+  inbound port (SSH/22) to the internet (0.0.0.0/0), creating an entry point
+  for initial access. This is a configuration-level risk and is flagged
+  whether or not the instance is currently running, because the exposure
+  becomes active the moment the instance starts.
+
+detections:
+  - cloud: aws
+    cypher: |
+      MATCH (i:EC2Instance)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
+      MATCH (sg)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(inbound:IpPermissionInbound)
+      WHERE inbound.fromport <= 22 AND inbound.toport >= 22
+      RETURN DISTINCT i.id AS node_id,
+                      'EC2Instance' AS node_type,
+                      i.instanceid AS detail
+
+  - cloud: gcp
+    cypher: |
+      // Find GCP instances exposed by open SSH firewall(s) in their network.
+      // Returns ONE row per instance, with all matching firewalls aggregated
+      // to prevent duplicate detections.
+      MATCH (i:GCPInstance)
+      MATCH (f:GCPFirewall)
+      WHERE f.is_open_to_internet = true
+        AND f.direction = 'INGRESS'
+        AND f.disabled = false
+        AND any(rule IN f.allowed WHERE rule CONTAINS 'tcp:22')
+        AND any(net IN i.networks WHERE net = f.network)
+        AND (
+          f.applies_to_all_in_network = true
+          OR any(t IN f.target_tags WHERE t IN i.tags)
+          OR any(sa IN f.target_service_accounts
+                 WHERE sa IN i.service_account_emails)
+        )
+      WITH i, collect(DISTINCT f.name) AS matching_firewalls
+      RETURN i.name AS node_id,
+             'GCPInstance' AS node_type,
+             reduce(s = '', x IN matching_firewalls | s + x + ', ') AS detail

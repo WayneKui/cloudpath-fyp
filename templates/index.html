@@ -1,0 +1,1747 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudPath — Attack Path Dashboard</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+    <style>
+      :root {
+        --bg-deep: #060a12;
+        --bg-panel: #0d1420;
+        --bg-panel-2: #111a2b;
+        --grid: rgba(45, 117, 182, 0.06);
+        --accent: #00e5ff;
+        --accent-2: #5da9e9;
+        --danger: #ff3860;
+        --warn: #ff8c42;
+        --med: #ffd24d;
+        --crit: #b14aed;
+        --ok: #2ee6a0;
+        --text: #dfe8f5;
+        --text-dim: #6b7d96;
+        --border: rgba(93, 169, 233, 0.18);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: "Space Grotesk", sans-serif;
+        background: var(--bg-deep);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background-image:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 44px 44px;
+        mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, #000 40%, transparent 100%);
+      }
+
+      /* ---------- Nav (matching your existing pages) ---------- */
+      .top-nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        padding: 16px 40px;
+        background: rgba(6, 10, 18, 0.9);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 18px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        color: var(--text);
+      }
+      .nav-logo svg {
+        width: 26px; height: 26px;
+        stroke: var(--accent); fill: none; stroke-width: 1.6;
+        filter: drop-shadow(0 0 6px var(--accent));
+      }
+      .nav-links { display: flex; gap: 26px; margin-left: auto; align-items: center; }
+      .nav-links a {
+        color: var(--text-dim); text-decoration: none; font-size: 14px;
+        font-weight: 500; transition: 0.2s;
+      }
+      .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+      .nav-cta {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #04121a;
+        padding: 9px 22px; border-radius: 7px;
+        font-family: "Chakra Petch"; font-weight: 700; font-size: 13px;
+        letter-spacing: 1px; text-decoration: none; text-transform: uppercase;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+      }
+
+      /* ---------- Scan header (close to your old one) ---------- */
+      .scan-header {
+        position: relative; z-index: 2;
+        display: flex; justify-content: space-between;
+        align-items: flex-end; gap: 20px; flex-wrap: wrap;
+        padding: 32px 40px 8px;
+        max-width: 1500px; margin: 0 auto;
+      }
+      .scan-header-text { flex: 1; min-width: 280px; }
+      .page-tag {
+        font-family: "JetBrains Mono"; font-size: 12px; letter-spacing: 3px;
+        color: var(--accent); text-transform: uppercase; margin-bottom: 8px;
+      }
+      .scan-title {
+        font-family: "Chakra Petch"; font-size: clamp(28px, 4vw, 38px);
+        font-weight: 700; line-height: 1.05; letter-spacing: -0.5px;
+      }
+      .scan-title .grad {
+        background: linear-gradient(100deg, var(--accent), var(--crit));
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      .scan-sub {
+        font-size: 13px; color: var(--text-dim); margin-top: 6px; max-width: 640px;
+      }
+      .scan-btn {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #04121a; border: none;
+        padding: 14px 30px; border-radius: 9px;
+        font-family: "Chakra Petch"; font-weight: 700;
+        font-size: 14px; letter-spacing: 1.5px; text-transform: uppercase;
+        cursor: pointer; box-shadow: 0 0 24px rgba(0, 229, 255, 0.35);
+        transition: 0.2s;
+      }
+      .scan-btn:hover { transform: translateY(-2px); box-shadow: 0 0 36px rgba(0, 229, 255, 0.6); }
+      .scan-btn.loading {
+        opacity: 0.6; cursor: wait; pointer-events: none;
+        background: linear-gradient(135deg, var(--warn), var(--danger));
+      }
+
+      /* ---------- Scan action group (button + checkbox + cred indicators) ---------- */
+      .scan-actions {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .full-pipeline-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        color: var(--text-dim);
+        cursor: pointer;
+        user-select: none;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: rgba(13, 20, 32, 0.4);
+        transition: 0.2s;
+      }
+      .full-pipeline-toggle:hover {
+        border-color: var(--accent);
+        color: var(--text);
+      }
+      .full-pipeline-toggle input[type="checkbox"] {
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+      .full-pipeline-toggle .ftxt {
+        letter-spacing: 0.5px;
+      }
+      .cred-status {
+        display: flex;
+        gap: 4px;
+        margin-left: 4px;
+      }
+      .cred-pill {
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 9px;
+        letter-spacing: 0.5px;
+        background: rgba(0, 0, 0, 0.3);
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+      }
+      .cred-pill.ok {
+        color: var(--ok);
+        border-color: rgba(46, 230, 160, 0.4);
+      }
+      .cred-pill.missing {
+        color: var(--danger);
+        border-color: rgba(255, 56, 96, 0.4);
+      }
+
+      /* ---------- Pipeline progress overlay ---------- */
+      .pipeline-overlay {
+        position: fixed;
+        top: 20px; right: 20px;
+        z-index: 1000;
+        width: 360px;
+        max-width: calc(100vw - 40px);
+        background: rgba(13, 20, 32, 0.97);
+        border: 1px solid var(--accent);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 0 30px rgba(0, 229, 255, 0.25);
+        font-family: "JetBrains Mono";
+        font-size: 12px;
+        color: var(--text);
+        display: none;
+      }
+      .pipeline-overlay.visible { display: block; }
+      .pipeline-overlay h4 {
+        font-family: "Chakra Petch";
+        font-size: 13px;
+        letter-spacing: 1.5px;
+        color: var(--accent);
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .pipeline-overlay h4 .spin {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--ok);
+        box-shadow: 0 0 8px var(--ok);
+        animation: blink 1s infinite;
+      }
+      .pipeline-overlay.done h4 .spin {
+        background: var(--ok);
+        animation: none;
+      }
+      .pipeline-overlay.failed h4 .spin {
+        background: var(--danger);
+        box-shadow: 0 0 8px var(--danger);
+      }
+      .step-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .step-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        font-size: 11px;
+      }
+      .step-icon {
+        width: 14px;
+        text-align: center;
+      }
+      .step-icon.running { color: var(--warn); }
+      .step-icon.ok { color: var(--ok); }
+      .step-icon.failed,
+      .step-icon.timeout,
+      .step-icon.not_found,
+      .step-icon.error { color: var(--danger); }
+      .step-icon.pending { color: var(--text-dim); }
+      .step-name {
+        flex: 1;
+        color: var(--text);
+      }
+      .step-status {
+        color: var(--text-dim);
+        font-size: 10px;
+        letter-spacing: 0.5px;
+      }
+      .pipeline-overlay .close-btn {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        background: transparent;
+        border: none;
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+      }
+      .pipeline-overlay .close-btn:hover { color: var(--text); }
+      .status-bar {
+        position: relative; z-index: 2;
+        padding: 8px 40px 18px;
+        max-width: 1500px; margin: 0 auto;
+        font-family: "JetBrains Mono"; font-size: 11px;
+        letter-spacing: 2px; color: var(--text-dim);
+        text-transform: uppercase;
+        display: flex; align-items: center; gap: 10px;
+      }
+      .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+      .status-dot.live { background: var(--ok); box-shadow: 0 0 10px var(--ok); animation: blink 1.4s infinite; }
+      .status-dot.scanning { background: var(--warn); box-shadow: 0 0 10px var(--warn); animation: blink 0.6s infinite; }
+      .status-dot.error { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+      @keyframes blink { 50% { opacity: 0.3; } }
+
+      /* ---------- KPI strip (new) ---------- */
+      .kpi-strip {
+        position: relative; z-index: 2;
+        max-width: 1500px; margin: 0 auto;
+        padding: 0 40px;
+        display: grid; grid-template-columns: repeat(5, 1fr);
+        gap: 12px; margin-bottom: 18px;
+      }
+
+      /* ---------- Connection banner ---------- */
+      .conn-bar {
+        position: relative; z-index: 2;
+        max-width: 1500px; margin: 0 auto 16px;
+        padding: 0 40px;
+        display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+      }
+      .conn-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 7px 14px; border-radius: 8px;
+        background: rgba(13, 20, 32, 0.6);
+        border: 1px solid var(--border);
+        font-family: "JetBrains Mono"; font-size: 11px; letter-spacing: 1px;
+      }
+      .conn-pill.connected.aws { color: var(--warn); border-color: rgba(255, 140, 66, 0.4); }
+      .conn-pill.connected.gcp { color: var(--accent); border-color: rgba(0, 229, 255, 0.4); }
+      .conn-pill.disconnected { color: var(--text-dim); opacity: 0.7; }
+      .conn-pill .conn-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: var(--text-dim);
+      }
+      .conn-pill.connected .conn-dot {
+        background: var(--ok); box-shadow: 0 0 6px var(--ok);
+      }
+      .conn-warn {
+        flex: 1; padding: 9px 14px; border-radius: 8px;
+        background: rgba(255, 210, 77, 0.08);
+        border: 1px solid rgba(255, 210, 77, 0.3);
+        color: var(--med);
+        font-family: "JetBrains Mono"; font-size: 11.5px; letter-spacing: 0.5px;
+        display: none;
+      }
+      .conn-warn.visible { display: block; }
+      .conn-warn a {
+        color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
+      }
+      .kpi-card {
+        border: 1px solid var(--border); border-radius: 12px;
+        background: rgba(13, 20, 32, 0.6); backdrop-filter: blur(8px);
+        padding: 16px 20px; position: relative; overflow: hidden;
+      }
+      .kpi-card::before {
+        content: ""; position: absolute; top: 0; left: 0; bottom: 0;
+        width: 3px; background: var(--c); box-shadow: 0 0 12px var(--c);
+      }
+      .kpi-card.crit { --c: var(--crit); }
+      .kpi-card.high { --c: var(--warn); }
+      .kpi-card.med  { --c: var(--med); }
+      .kpi-card.low  { --c: var(--ok); }
+      .kpi-card.paths { --c: var(--accent); }
+      .kpi-label {
+        font-family: "JetBrains Mono"; font-size: 10px; letter-spacing: 2px;
+        color: var(--text-dim); text-transform: uppercase; margin-bottom: 5px;
+      }
+      .kpi-value {
+        font-family: "Chakra Petch"; font-size: 30px; font-weight: 700;
+        line-height: 1; color: var(--c);
+      }
+      .kpi-sub {
+        font-family: "JetBrains Mono"; font-size: 10px;
+        color: var(--text-dim); margin-top: 5px; letter-spacing: 0.5px;
+      }
+
+      /* Loading skeleton state — applied to .kpi-value while data is being
+         fetched from /dashboard-cache. Replaces the static "—" with a subtle
+         pulsing bar so the page looks alive rather than broken. */
+      .kpi-value.loading,
+      .kpi-sub.loading {
+        position: relative;
+        color: transparent;
+      }
+      .kpi-value.loading::after,
+      .kpi-sub.loading::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 30%;
+        width: 50%;
+        height: 40%;
+        border-radius: 4px;
+        background: linear-gradient(90deg,
+          rgba(93,169,233,0.05),
+          rgba(93,169,233,0.18),
+          rgba(93,169,233,0.05));
+        background-size: 200% 100%;
+        animation: skeletonShimmer 1.4s infinite linear;
+      }
+      .kpi-sub.loading::after {
+        width: 70%;
+        height: 50%;
+        top: 25%;
+      }
+      @keyframes skeletonShimmer {
+        from { background-position: 200% 0; }
+        to { background-position: -200% 0; }
+      }
+
+      /* ---------- Main dashboard layout ---------- */
+      .dashboard {
+        position: relative; z-index: 2;
+        max-width: 1500px; margin: 0 auto;
+        padding: 0 40px 40px;
+      }
+      .row-top {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      .panel-card {
+        border: 1px solid var(--border); border-radius: 14px;
+        background: rgba(13, 20, 32, 0.55); backdrop-filter: blur(8px);
+        padding: 16px; display: flex; flex-direction: column;
+        position: relative; overflow: hidden;
+      }
+      .panel-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .panel-card-title {
+        font-family: "JetBrains Mono"; font-size: 11px; letter-spacing: 2px;
+        color: var(--accent); text-transform: uppercase;
+      }
+      .panel-card-sub {
+        font-family: "JetBrains Mono"; font-size: 10px;
+        color: var(--text-dim); letter-spacing: 1px;
+      }
+      .panel-card-body {
+        flex: 1; position: relative; min-height: 0;
+      }
+      .panel-empty {
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; height: 100%; color: var(--text-dim);
+        font-family: "JetBrains Mono"; font-size: 12px; gap: 6px;
+        text-align: center;
+      }
+      .panel-empty .em-icon {
+        font-size: 28px; opacity: 0.4; margin-bottom: 4px;
+      }
+
+      /* ---------- Main graph + path panel (your original UX preserved) ---------- */
+      .graph-panel { min-height: 560px; }
+      #cy-wrapper {
+        position: absolute; inset: 0;
+        border-radius: 10px; overflow: hidden;
+        background: rgba(2, 5, 9, 0.4);
+      }
+      #cy { position: absolute; inset: 0; }
+      .sweep-line {
+        position: absolute; left: 0; right: 0; height: 2px; top: 0;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        box-shadow: 0 0 20px var(--accent);
+        opacity: 0; z-index: 10; pointer-events: none;
+      }
+      .sweep-line.active { animation: scanSweep 1.6s ease-in-out; }
+      @keyframes scanSweep {
+        0% { top: 0; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { top: 100%; opacity: 0; }
+      }
+
+      .paths-panel { min-height: 560px; }
+      .paths-panel .panel-card-body { overflow-y: auto; padding-right: 4px; }
+      .paths-panel .panel-card-body::-webkit-scrollbar { width: 6px; }
+      .paths-panel .panel-card-body::-webkit-scrollbar-thumb {
+        background: var(--border); border-radius: 3px;
+      }
+
+      .path-card {
+        background: linear-gradient(145deg, var(--bg-panel-2), rgba(13, 20, 32, 0.6));
+        border: 1px solid var(--border); border-radius: 14px;
+        padding: 16px; margin-bottom: 14px;
+        opacity: 0; transform: translateY(16px);
+        animation: cardIn 0.5s forwards;
+        position: relative; overflow: hidden;
+        cursor: pointer; transition: border-color 0.2s;
+      }
+      .path-card:hover { border-color: var(--accent); }
+      .path-card.active { border-color: var(--accent); box-shadow: 0 0 18px rgba(0,229,255,0.2); }
+      .path-card::before {
+        content: ""; position: absolute; top: 0; left: 0;
+        width: 3px; height: 100%;
+      }
+      .path-card.crit::before { background: var(--crit); box-shadow: 0 0 16px var(--crit); }
+      .path-card.high::before { background: var(--warn); box-shadow: 0 0 16px var(--warn); }
+      .path-card.medium::before { background: var(--med); }
+      .path-card.low::before { background: var(--ok); }
+      .cross-cloud-badge {
+        position: absolute; top: 10px; right: 12px;
+        font-family: "JetBrains Mono"; font-size: 9px; letter-spacing: 1px;
+        padding: 3px 8px; border-radius: 4px;
+        background: rgba(0, 229, 255, 0.12);
+        border: 1px solid var(--accent); color: var(--accent);
+        text-transform: uppercase;
+      }
+      @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
+      .gauge-row {
+        display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+      }
+      .gauge { position: relative; width: 70px; height: 70px; flex-shrink: 0; }
+      .gauge svg { transform: rotate(-90deg); }
+      .gauge-track { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 6; }
+      .gauge-fill {
+        fill: none; stroke-width: 6; stroke-linecap: round;
+        transition: stroke-dashoffset 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      .gauge-val {
+        position: absolute; inset: 0; display: grid; place-items: center;
+        font-family: "Chakra Petch"; font-size: 18px; font-weight: 700;
+      }
+      .sev-label {
+        font-family: "Chakra Petch"; font-size: 14px; font-weight: 700;
+        letter-spacing: 1px; text-transform: uppercase;
+      }
+      .metric-line {
+        font-family: "JetBrains Mono"; font-size: 10px;
+        color: var(--text-dim); margin-top: 3px;
+      }
+      .chain { margin-top: 12px; }
+      .chain-step { display: flex; gap: 10px; padding: 8px 0; position: relative; }
+      .chain-step:not(:last-child)::after {
+        content: ""; position: absolute; left: 9px; top: 28px; bottom: -8px;
+        width: 2px; background: linear-gradient(var(--accent), transparent);
+      }
+      .step-dot {
+        width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+        margin-top: 2px; border: 2px solid var(--accent);
+        background: var(--bg-deep);
+        box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+        display: grid; place-items: center;
+        font-size: 10px; font-weight: 700;
+        font-family: "JetBrains Mono"; color: var(--accent);
+      }
+      .step-body { flex: 1; }
+      .step-tactic {
+        font-family: "Chakra Petch"; font-size: 11px;
+        letter-spacing: 1.5px; text-transform: uppercase;
+        color: var(--accent-2);
+      }
+      .step-tech { font-size: 13px; font-weight: 600; margin: 2px 0; }
+      .step-node { font-family: "JetBrains Mono"; font-size: 10px; color: var(--text-dim); }
+      .tag {
+        display: inline-block; font-family: "JetBrains Mono"; font-size: 10px;
+        padding: 1px 7px; border-radius: 4px; border: 1px solid var(--border);
+        color: var(--accent); margin-top: 4px;
+      }
+      .tag.cloud-aws { color: var(--warn); border-color: var(--warn); }
+      .tag.cloud-gcp { color: var(--accent); border-color: var(--accent); }
+
+      /* ---------- Row 2: chart + heatmap ---------- */
+      .row-bottom {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .chart-panel { min-height: 260px; }
+      .heatmap-panel { min-height: 260px; }
+
+      /* ---------- Heatmap grid (Session 4) ---------- */
+      .heatmap-table {
+        display: grid;
+        gap: 4px;
+        width: 100%;
+        height: 100%;
+        padding: 8px 6px;
+      }
+      .heatmap-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "JetBrains Mono";
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 5px;
+        position: relative;
+        transition: transform 0.15s, box-shadow 0.15s;
+      }
+      .heatmap-cell.data { cursor: pointer; }
+      .heatmap-cell.data:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 18px var(--accent);
+        z-index: 2;
+      }
+      .heatmap-cell.active {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .heatmap-cell.label {
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        background: transparent;
+        font-weight: 500;
+      }
+      .heatmap-cell.col-label {
+        font-size: 10px;
+        letter-spacing: 1px;
+        color: var(--text-dim);
+        background: transparent;
+        font-weight: 500;
+      }
+      .heatmap-cell.cloud-aws { color: var(--warn); }
+      .heatmap-cell.cloud-gcp { color: var(--accent); }
+      .heatmap-cell .cell-count {
+        font-family: "Chakra Petch";
+        font-size: 18px;
+      }
+      .heatmap-cell .cell-empty {
+        color: var(--text-dim);
+        opacity: 0.3;
+        font-size: 14px;
+      }
+      /* "Other" category column: dimmed header to signal uncategorised */
+      .heatmap-cell.col-label.col-other {
+        color: var(--med);
+        opacity: 0.85;
+      }
+      .heatmap-cell.col-label.col-other::after {
+        content: " ⚠";
+        font-size: 9px;
+        margin-left: 3px;
+      }
+      .heatmap-filter-status {
+        position: absolute;
+        bottom: 8px;
+        right: 12px;
+        font-family: "JetBrains Mono";
+        font-size: 10px;
+        color: var(--accent);
+        letter-spacing: 1px;
+        display: none;
+      }
+      .heatmap-filter-status.active { display: block; }
+
+      /* ---------- Layout switcher buttons (Session 5) ---------- */
+      .layout-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        padding: 5px 11px;
+        border-radius: 6px;
+        font-family: "JetBrains Mono";
+        font-size: 10px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .layout-btn:hover {
+        border-color: var(--accent);
+        color: var(--text);
+      }
+      .layout-btn.active {
+        background: rgba(0, 229, 255, 0.12);
+        border-color: var(--accent);
+        color: var(--accent);
+        box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
+      }
+
+      /* ---------- Cytoscape graph legend ---------- */
+      .legend {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: rgba(6, 10, 18, 0.85);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        z-index: 5;
+        max-width: 180px;
+        pointer-events: none;
+      }
+      .legend-title {
+        font-family: "JetBrains Mono";
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .legend-items {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: "JetBrains Mono";
+        font-size: 10px;
+        color: var(--text);
+      }
+      .legend-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        box-shadow: 0 0 5px currentColor;
+      }
+
+      @media (max-width: 1100px) {
+        .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+        .row-top, .row-bottom { grid-template-columns: 1fr; }
+        .graph-panel, .paths-panel { min-height: 440px; }
+      }
+      @media (max-width: 700px) {
+        /* Phone-narrow layout */
+        .top-nav { padding: 12px 18px; gap: 14px; }
+        .nav-links { gap: 14px; }
+        .nav-links a:not(.nav-cta) { font-size: 12px; }
+        .nav-cta { padding: 7px 14px; font-size: 11px; }
+        .scan-header, .status-bar, .conn-bar, .kpi-strip, .dashboard {
+          padding-left: 18px; padding-right: 18px;
+        }
+        .kpi-strip { grid-template-columns: 1fr 1fr; }
+        .kpi-card { padding: 12px 14px; }
+        .kpi-value { font-size: 24px; }
+        .panel-card { padding: 12px; }
+        .graph-panel, .paths-panel { min-height: 360px; }
+        .chart-panel, .heatmap-panel { min-height: 220px; }
+        .layout-btn { padding: 4px 8px; font-size: 9px; }
+        .legend { max-width: 130px; padding: 6px 8px; }
+        .legend-item { font-size: 9px; }
+      }
+
+      footer {
+        text-align: center; color: var(--text-dim);
+        font-family: "JetBrains Mono"; font-size: 12px;
+        padding: 30px; margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="top-nav">
+      <a href="/" class="nav-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+        CloudPath
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        {% if current_user.is_authenticated %}
+          <a href="/connect">Connect</a>
+          <a href="/app" class="active">Scanner</a>
+          <a href="/rules">Rules</a>
+          <a href="/docs">Docs</a>
+          <a href="/logout" class="nav-cta">Logout</a>
+        {% else %}
+          <a href="/login" class="nav-cta">Sign in</a>
+        {% endif %}
+      </div>
+    </nav>
+
+    <!-- Pipeline progress overlay (hidden by default) -->
+    <div class="pipeline-overlay" id="pipelineOverlay">
+      <button class="close-btn" onclick="closePipelineOverlay()" title="Hide (pipeline keeps running)">×</button>
+      <h4><span class="spin"></span><span id="pipelineHeading">Pipeline running…</span></h4>
+      <ul class="step-list" id="pipelineStepList"></ul>
+    </div>
+
+    <div class="scan-header">
+      <div class="scan-header-text">
+        <div class="page-tag">Attack Path Dashboard</div>
+        <div class="scan-title">Multi-cloud <span class="grad">risk overview.</span></div>
+
+      </div>
+      <div class="scan-actions">
+        <button class="scan-btn" id="scanBtn" onclick="runScan()">▶ Run Scan</button>
+        <label class="full-pipeline-toggle" title="Tick to run the full ingestion pipeline (Cartography + ingestors + Prowler + merge + detection). Takes 5-30 minutes. Pipeline runs in the background; the page stays responsive.">
+          <input type="checkbox" id="fullPipelineCheck">
+          <span class="ftxt">Full re-ingestion</span>
+          <span class="cred-status" id="credStatus">
+            <span class="cred-pill" id="credAws">AWS: ?</span>
+            <span class="cred-pill" id="credGcp">GCP: ?</span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <span class="status-dot live" id="statusDot"></span>
+      <span id="statusText">System ready · Neo4j connected · awaiting scan</span>
+    </div>
+
+    <!-- Connection status banner -->
+    <div class="conn-bar">
+      <div class="conn-pill disconnected aws" id="connAws">
+        <span class="conn-dot"></span>
+        <span id="connAwsLabel">AWS · checking…</span>
+      </div>
+      <div class="conn-pill disconnected gcp" id="connGcp">
+        <span class="conn-dot"></span>
+        <span id="connGcpLabel">GCP · checking…</span>
+      </div>
+      <div class="conn-warn" id="connWarn">
+        ⚠ No cloud accounts connected. Visit <a href="/connect">Connect</a> first, or run the
+        ingestion scripts to populate Neo4j. Scan results will be empty until at least one
+        cloud is connected.
+      </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="kpi-strip">
+      <div class="kpi-card crit">
+        <div class="kpi-label">Critical</div>
+        <div class="kpi-value loading" id="kpiCrit">—</div>
+        <div class="kpi-sub">paths ≥ 9.0/10</div>
+      </div>
+      <div class="kpi-card high">
+        <div class="kpi-label">High</div>
+        <div class="kpi-value loading" id="kpiHigh">—</div>
+        <div class="kpi-sub">paths 7.0–8.9</div>
+      </div>
+      <div class="kpi-card med">
+        <div class="kpi-label">Medium</div>
+        <div class="kpi-value loading" id="kpiMed">—</div>
+        <div class="kpi-sub">paths 4.0–6.9</div>
+      </div>
+      <div class="kpi-card low">
+        <div class="kpi-label">Low</div>
+        <div class="kpi-value loading" id="kpiLow">—</div>
+        <div class="kpi-sub">paths &lt; 4.0</div>
+      </div>
+      <div class="kpi-card paths">
+        <div class="kpi-label">Cross-Cloud</div>
+        <div class="kpi-value loading" id="kpiCross">—</div>
+        <div class="kpi-sub loading" id="kpiTotal">— total paths</div>
+      </div>
+    </div>
+
+    <div class="dashboard">
+      <!-- Row 1: Graph + Path panel (your original scanner UX preserved) -->
+      <div class="row-top">
+        <div class="panel-card graph-panel">
+          <div class="panel-header">
+            <div class="panel-card-title">▶ Attack Graph</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="layout-btn active" data-layout="breadthfirst" onclick="setLayout('breadthfirst', this)" title="Kill-chain (top to bottom)">Hierarchy</button>
+              <button class="layout-btn" data-layout="cose" onclick="setLayout('cose', this)" title="Force-directed clustering">Force</button>
+              <button class="layout-btn" data-layout="circle" onclick="setLayout('circle', this)" title="Circular arrangement">Circle</button>
+              <span class="panel-card-sub" id="graphMeta" style="margin-left:8px;">— nodes · — paths</span>
+            </div>
+          </div>
+          <div class="panel-card-body">
+            <div id="cy-wrapper">
+              <div id="cy"></div>
+              <div class="sweep-line" id="sweep"></div>
+              <div class="legend" id="legend">
+                <div class="legend-title">Tactic</div>
+                <div class="legend-items" id="legendItems"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card paths-panel">
+          <div class="panel-header">
+            <div class="panel-card-title">▶ Threat Analysis</div>
+            <div class="panel-card-sub">MITRE ATT&amp;CK · CVSS-aligned</div>
+          </div>
+          <div class="panel-card-body" id="panel">
+            <div class="panel-empty" id="empty">
+              <div class="em-icon">⋮</div>
+              <div>Click "Run Scan" to reveal attack paths.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Chart + Heatmap (placeholders, filled in Sessions 3-4) -->
+      <div class="row-bottom">
+        <div class="panel-card chart-panel">
+          <div class="panel-header">
+            <div class="panel-card-title">▶ Risk by Tactic</div>
+            <div class="panel-card-sub">MITRE kill-chain distribution</div>
+          </div>
+          <div class="panel-card-body">
+            <div id="chartContainer" style="position:absolute;inset:0;padding:6px 4px 4px;">
+              <div class="panel-empty" id="chartEmpty">
+                <div class="em-icon">▥</div>
+                <div>Run scan to view tactic distribution</div>
+              </div>
+              <svg id="chartSvg" style="display:none;width:100%;height:100%;" preserveAspectRatio="none"></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card heatmap-panel">
+          <div class="panel-header">
+            <div class="panel-card-title">▶ Cloud × Resource Heatmap</div>
+            <div class="panel-card-sub" id="heatmapHint">Click to filter graph</div>
+          </div>
+          <div class="panel-card-body">
+            <div id="heatmapContainer" style="position:absolute;inset:0;padding:6px 4px 4px;">
+              <div class="panel-empty" id="heatmapEmpty">
+                <div class="em-icon">▦</div>
+                <div>Run scan to view cloud × resource matrix</div>
+              </div>
+              <div id="heatmapGrid" style="display:none;width:100%;height:100%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>CloudPath · Multi-Cloud Attack Path Engine · © 2026</footer>
+
+    <script>
+      // ====== Visual constants (preserved from your original scanner) ======
+      const tacticColor = {
+        "Initial Access": "#ff3860",
+        Execution: "#ff6b35",
+        Persistence: "#f0932b",
+        "Privilege Escalation": "#ff8c42",
+        "Defense Evasion": "#e056fd",
+        "Credential Access": "#22a6b3",
+        Discovery: "#7f8fa6",
+        "Lateral Movement": "#3742fa",
+        Collection: "#ffb142",
+        Exfiltration: "#ff5252",
+        Impact: "#b14aed",
+      };
+      const sevColor = {
+        Critical: "#b14aed",
+        High: "#ff8c42",
+        Medium: "#ffd24d",
+        Low: "#2ee6a0",
+        None: "#6b7d96",
+      };
+
+      let cy = null;
+      let lastData = null;
+
+      // ====== Status / KPI helpers ======
+      function setStatus(state, text) {
+        const dot = document.getElementById("statusDot");
+        dot.className = "status-dot " + state;
+        document.getElementById("statusText").textContent = text;
+      }
+
+      function setKpis(kpi) {
+        // Clear loading shimmer once real data is present
+        ["kpiCrit", "kpiHigh", "kpiMed", "kpiLow", "kpiCross", "kpiTotal"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.classList.remove("loading");
+        });
+        document.getElementById("kpiCrit").textContent  = kpi.critical ?? 0;
+        document.getElementById("kpiHigh").textContent  = kpi.high ?? 0;
+        document.getElementById("kpiMed").textContent   = kpi.medium ?? 0;
+        document.getElementById("kpiLow").textContent   = kpi.low ?? 0;
+        document.getElementById("kpiCross").textContent = kpi.cross_cloud_paths ?? 0;
+        document.getElementById("kpiTotal").textContent = (kpi.total_paths ?? 0) + " total paths";
+      }
+
+      // Called when the cache is empty (first time load, no prior scan).
+      // Strips the shimmer and shows "—" so the page doesn't loop forever.
+      function clearKpiSkeleton() {
+        ["kpiCrit", "kpiHigh", "kpiMed", "kpiLow", "kpiCross", "kpiTotal"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.classList.remove("loading");
+            if (!el.textContent || el.textContent === "") {
+              el.textContent = id === "kpiTotal" ? "— total paths" : "—";
+            }
+          }
+        });
+      }
+
+      // ====== Scan flow (preserves your original UX) ======
+      // ====== Run Scan — branches on the 'Full re-ingestion' checkbox ======
+      // Default path: fast detection-only refresh (/dashboard-data, ~3 sec).
+      // Full path: starts the background pipeline (/full-pipeline-scan) and
+      //           polls /pipeline-status until done. Page stays responsive.
+      async function runScan() {
+        const fullCheck = document.getElementById("fullPipelineCheck");
+        if (fullCheck && fullCheck.checked) {
+          startFullPipeline();
+          return;
+        }
+
+        // ----- Fast path: detection only -----
+        const btn = document.getElementById("scanBtn");
+        btn.classList.add("loading");
+        setStatus("scanning", "Scanning · running detection engine · correlating attack paths…");
+        document.getElementById("sweep").classList.add("active");
+        try {
+          const res = await fetch("/dashboard-data");
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.message || "Unknown error");
+          lastData = data;
+
+          setKpis(data.kpi);
+
+          setTimeout(() => {
+            render(data.paths);
+            setStatus(
+              "live",
+              "Analysis complete · " + data.paths.length + " attack path(s) · " +
+              data.detection_count + " detections"
+            );
+            window.dispatchEvent(new CustomEvent("cloudpath:data", { detail: data }));
+          }, 1400);
+        } catch (e) {
+          console.error(e);
+          setStatus("error", "Error · " + (e.message || "scan failed"));
+        } finally {
+          setTimeout(() => {
+            btn.classList.remove("loading");
+            document.getElementById("sweep").classList.remove("active");
+          }, 1500);
+        }
+      }
+
+      // ====== Full pipeline: background thread + status polling ======
+      let pipelinePollTimer = null;
+
+      async function startFullPipeline() {
+        const overlay = document.getElementById("pipelineOverlay");
+        const heading = document.getElementById("pipelineHeading");
+        const btn = document.getElementById("scanBtn");
+
+        overlay.classList.remove("done", "failed");
+        overlay.classList.add("visible");
+        heading.textContent = "Pipeline starting…";
+        document.getElementById("pipelineStepList").innerHTML = "";
+        btn.classList.add("loading");
+        setStatus("scanning", "Full pipeline running in background · page stays responsive");
+
+        try {
+          const res = await fetch("/full-pipeline-scan", { method: "POST" });
+          const data = await res.json();
+          const jobId = data.job_id;
+          if (!jobId) throw new Error(data.message || "Failed to start pipeline");
+          heading.textContent = data.status === "already_running"
+            ? "Attached to running pipeline…"
+            : "Pipeline running…";
+          // Begin polling
+          if (pipelinePollTimer) clearInterval(pipelinePollTimer);
+          pipelinePollTimer = setInterval(() => pollPipelineStatus(jobId), 3000);
+          pollPipelineStatus(jobId);  // immediate first poll
+        } catch (e) {
+          console.error(e);
+          setStatus("error", "Pipeline failed to start: " + e.message);
+          overlay.classList.add("failed");
+          heading.textContent = "Pipeline failed to start";
+          btn.classList.remove("loading");
+        }
+      }
+
+      async function pollPipelineStatus(jobId) {
+        try {
+          const res = await fetch("/pipeline-status/" + jobId);
+          if (!res.ok) {
+            // Job lost (e.g., Flask restarted) — stop polling
+            clearInterval(pipelinePollTimer);
+            setStatus("error", "Pipeline job no longer tracked (server restarted?)");
+            return;
+          }
+          const data = await res.json();
+          renderPipelineStatus(data);
+
+          if (data.status === "complete" || data.status === "failed") {
+            clearInterval(pipelinePollTimer);
+            pipelinePollTimer = null;
+            document.getElementById("scanBtn").classList.remove("loading");
+
+            if (data.status === "complete" && data.result && data.result.status === "ok") {
+              lastData = data.result;
+              setKpis(data.result.kpi);
+              render(data.result.paths);
+              window.dispatchEvent(new CustomEvent("cloudpath:data", { detail: data.result }));
+              setStatus("live",
+                "Pipeline complete · " + (data.result.paths || []).length + " attack path(s)");
+              document.getElementById("pipelineOverlay").classList.add("done");
+              document.getElementById("pipelineHeading").textContent = "Pipeline complete";
+            } else {
+              document.getElementById("pipelineOverlay").classList.add("failed");
+              document.getElementById("pipelineHeading").textContent =
+                "Pipeline finished with errors";
+              setStatus("error", data.error || "Pipeline finished with errors");
+            }
+          }
+        } catch (e) {
+          console.error("poll error", e);
+          // Don't kill the timer on transient network errors; let the next tick retry
+        }
+      }
+
+      function renderPipelineStatus(data) {
+        const ul = document.getElementById("pipelineStepList");
+        const stepMeta = [
+          { name: "cartography_aws", label: "Cartography (AWS)" },
+          { name: "aws_secret_ingest", label: "AWS Secrets ingest" },
+          { name: "gcp_ingest_full", label: "GCP full ingest" },
+          { name: "prowler_aws", label: "Prowler (AWS)" },
+          { name: "prowler_gcp", label: "Prowler (GCP)" },
+          { name: "merge_findings", label: "Merge findings" },
+          { name: "engine_detection", label: "Run detection engine" },
+        ];
+        const byName = {};
+        (data.steps || []).forEach(s => { byName[s.name] = s; });
+        // Add a synthetic engine_detection step record from current_step
+        if (data.current_step === "engine_detection") {
+          byName["engine_detection"] = { name: "engine_detection", status: "running" };
+        } else if (data.status === "complete") {
+          byName["engine_detection"] = { name: "engine_detection", status: "ok" };
+        }
+
+        ul.innerHTML = stepMeta.map(meta => {
+          const s = byName[meta.name];
+          let status = "pending";
+          let icon = "·";
+          let statusText = "pending";
+          if (s) {
+            status = s.status;
+            statusText = s.status;
+            if (status === "running") icon = "⟳";
+            else if (status === "ok") icon = "✓";
+            else if (status === "failed" || status === "timeout" ||
+                     status === "not_found" || status === "error") icon = "✗";
+            if (s.error) statusText = status + " · " + s.error.substring(0, 60);
+          }
+          return '<li class="step-item">' +
+                 '<span class="step-icon ' + status + '">' + icon + '</span>' +
+                 '<span class="step-name">' + meta.label + '</span>' +
+                 '<span class="step-status">' + statusText + '</span>' +
+                 '</li>';
+        }).join("");
+      }
+
+      function closePipelineOverlay() {
+        document.getElementById("pipelineOverlay").classList.remove("visible");
+        // Note: this only hides the UI. The pipeline keeps running on the server.
+      }
+
+      // ====== Credential-status indicators next to "Full re-ingestion" ======
+      // Phase 7: read from /api/credentials/status (per-user PostgreSQL)
+      // instead of /env-status (global env vars). This means each user
+      // sees their own credential state — a new user with no saved
+      // creds correctly sees AWS:✗ / GCP:✗ even if Flask's env vars
+      // are set for the scanner-account refresh worker.
+      async function refreshCredStatus() {
+        try {
+          const res = await fetch("/api/credentials/status");
+          const data = await res.json();
+          if (!data || (!data.aws && !data.gcp)) return;
+          const awsOk = !!(data.aws && data.aws.connected);
+          const gcpOk = !!(data.gcp && data.gcp.connected);
+          const awsDetail = data.aws && data.aws.account_id
+            ? `assumes role into account ${data.aws.account_id}`
+            : "no AWS credential saved";
+          const gcpDetail = data.gcp && data.gcp.project_id
+            ? `project ${data.gcp.project_id}`
+            : "no GCP credential saved";
+          updateCredPill("credAws", awsOk, "AWS", awsDetail);
+          updateCredPill("credGcp", gcpOk, "GCP", gcpDetail);
+        } catch (e) {
+          // Silent failure — leave pills as "?"
+        }
+      }
+      function updateCredPill(id, ok, label, detail) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = "cred-pill " + (ok ? "ok" : "missing");
+        el.textContent = label + ": " + (ok ? "✓" : "✗");
+        // Tooltip carries the honest reason (e.g., "STS token expired")
+        if (detail) el.title = label + " — " + detail;
+      }
+      refreshCredStatus();
+      // Re-check every 60s so the pills reflect cred refreshes
+      setInterval(refreshCredStatus, 60000);
+
+      // ====== Render (preserved from your original scanner, with cloud tags) ======
+      function render(paths) {
+        // Build Cytoscape elements
+        const elements = [];
+        const seen = new Set();
+        paths.forEach((p) => {
+          p.steps.forEach((s, i) => {
+            if (!seen.has(s.node_id)) {
+              seen.add(s.node_id);
+              elements.push({
+                data: {
+                  id: s.node_id,
+                  label: s.node_type + "\n" + truncate(s.node_id, 28),
+                  tactic: s.tactic,
+                  ntype: s.node_type,
+                  cloud: s.cloud || "unknown",
+                },
+              });
+            }
+            if (i > 0) {
+              const prev = p.steps[i - 1];
+              elements.push({
+                data: {
+                  id: prev.node_id + "->" + s.node_id + "->" + s.technique_id,
+                  source: prev.node_id,
+                  target: s.node_id,
+                  label: s.technique_id + "\n" + s.tactic,
+                  isCrossCloud: (prev.cloud && s.cloud && prev.cloud !== s.cloud) ? 1 : 0,
+                },
+              });
+            }
+          });
+        });
+
+        if (cy) { cy.destroy(); cy = null; }
+        cy = cytoscape({
+          container: document.getElementById("cy"),
+          elements,
+          style: [
+            {
+              selector: "node",
+              style: {
+                label: "data(label)",
+                color: "#fff",
+                "font-size": "11px",
+                "font-family": "JetBrains Mono",
+                "text-wrap": "wrap",
+                "text-max-width": "120px",
+                "text-valign": "bottom",
+                "text-margin-y": 8,
+                "text-halign": "center",
+                "background-color": (ele) => tacticColor[ele.data("tactic")] || "#5da9e9",
+                width: 50,
+                height: 50,
+                "border-width": 3,
+                "border-color": (ele) => tacticColor[ele.data("tactic")] || "#5da9e9",
+                "border-opacity": 0.4,
+                "text-outline-width": 3,
+                "text-outline-color": "#060a12",
+              },
+            },
+            {
+              selector: "edge",
+              style: {
+                label: "data(label)",
+                width: 2.5,
+                "line-color": "#ff3860",
+                "target-arrow-color": "#ff3860",
+                "target-arrow-shape": "triangle",
+                "curve-style": "bezier",
+                "font-size": "9px",
+                "font-family": "JetBrains Mono",
+                color: "#ffd24d",
+                "text-wrap": "wrap",
+                "text-rotation": "autorotate",
+                "text-background-color": "#060a12",
+                "text-background-opacity": 0.8,
+                "text-background-padding": 3,
+                "line-style": "dashed",
+                "line-dash-pattern": [6, 3],
+              },
+            },
+            {
+              selector: 'edge[isCrossCloud = 1]',
+              style: {
+                "line-color": "#00e5ff",
+                "target-arrow-color": "#00e5ff",
+                width: 3,
+                "line-style": "solid",
+              },
+            },
+            { selector: "node:selected", style: { "border-opacity": 1, "border-width": 5 } },
+          ],
+          layout: { name: "breadthfirst", directed: true, spacingFactor: 1.5, padding: 50 },
+        });
+
+        // Subtle pop animation on each node (matches your old style)
+        cy.nodes().forEach((n, idx) => {
+          setTimeout(() => {
+            n.animate({ style: { width: 60, height: 60 } }, { duration: 300 })
+             .animate({ style: { width: 50, height: 50 } }, { duration: 300 });
+          }, idx * 150);
+        });
+
+        // Update meta
+        document.getElementById("graphMeta").textContent =
+          cy.nodes().length + " nodes · " + paths.length + " paths";
+
+        // Render the tactic legend (Session 5)
+        renderLegend(paths);
+
+        // Render path cards (preserved from your original)
+        const panel = document.getElementById("panel");
+        const empty = document.getElementById("empty");
+        if (empty) empty.remove();
+        panel.querySelectorAll(".path-card").forEach((c) => c.remove());
+        panel.querySelectorAll(".panel-empty").forEach((c) => c.remove());
+
+        // Empty-state: no attack paths detected
+        if (!paths || paths.length === 0) {
+          const emptyDiv = document.createElement("div");
+          emptyDiv.className = "panel-empty";
+          emptyDiv.innerHTML =
+            '<div class="em-icon">∅</div>' +
+            '<div>No attack paths detected.</div>' +
+            '<div style="opacity:0.7;margin-top:4px;font-size:10px">' +
+            'Neo4j has no matching nodes for the loaded rules. ' +
+            'Run a full pipeline scan to ingest cloud data.</div>';
+          panel.appendChild(emptyDiv);
+        }
+
+        paths.forEach((p, i) => {
+          const sev = p.severity.toLowerCase();
+          const color = sevColor[p.severity] || "#6b7d96";
+          const circ = 2 * Math.PI * 30;
+          const offset = circ - (p.score / 10) * circ;
+          const isCross = p.breakdown && p.breakdown.cross_cloud;
+
+          const card = document.createElement("div");
+          card.className = "path-card " + sev;
+          card.style.animationDelay = i * 0.12 + "s";
+          card.innerHTML =
+            (isCross ? '<span class="cross-cloud-badge">⤳ Cross-Cloud</span>' : '') +
+            '<div class="gauge-row">' +
+              '<div class="gauge">' +
+                '<svg width="70" height="70">' +
+                  '<circle class="gauge-track" cx="35" cy="35" r="30"></circle>' +
+                  '<circle class="gauge-fill" cx="35" cy="35" r="30" stroke="' + color +
+                  '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + circ +
+                  '" style="filter:drop-shadow(0 0 6px ' + color + ')"></circle>' +
+                '</svg>' +
+                '<div class="gauge-val" style="color:' + color + '">' + p.score + '</div>' +
+              '</div>' +
+              '<div>' +
+                '<div class="sev-label" style="color:' + color + '">' + p.severity + ' RISK</div>' +
+                '<div class="metric-line">EXPLOIT ' + p.breakdown.exploitability +
+                  ' · IMPACT ' + p.breakdown.impact + '</div>' +
+                '<div class="metric-line">LENGTH ' + p.breakdown.length +
+                  ' · ' + (p.breakdown.internet_entry ? "INTERNET-FACING" : "INTERNAL") + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="chain">' +
+              p.steps.map((s, idx) =>
+                '<div class="chain-step">' +
+                  '<div class="step-dot">' + (idx + 1) + '</div>' +
+                  '<div class="step-body">' +
+                    '<div class="step-tactic">' + s.tactic + '</div>' +
+                    '<div class="step-tech">' + s.mitre_name + '</div>' +
+                    '<div class="step-node">' + s.node_type + ' · ' + truncate(s.node_id, 50) + '</div>' +
+                    '<span class="tag cloud-' + (s.cloud || 'unknown') + '">' +
+                      s.technique_id + ' · ' + (s.cloud || '?').toUpperCase() +
+                    '</span>' +
+                  '</div>' +
+                '</div>'
+              ).join('') +
+            '</div>';
+
+          // Click a card → highlight the path's nodes in the graph
+          card.addEventListener('click', () => {
+            panel.querySelectorAll('.path-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            if (cy) {
+              cy.nodes().unselect();
+              p.steps.forEach(s => {
+                const n = cy.getElementById(s.node_id);
+                if (n) n.select();
+              });
+              cy.fit(cy.nodes(':selected'), 80);
+            }
+          });
+
+          panel.appendChild(card);
+          setTimeout(() => {
+            card.querySelector('.gauge-fill').style.strokeDashoffset = offset;
+          }, 200 + i * 150);
+        });
+      }
+
+      function truncate(s, max) {
+        if (!s) return '';
+        return s.length > max ? s.substring(0, max - 2) + '…' : s;
+      }
+
+      // ====== Session 5: Layout switcher (Hierarchy / Force / Circle) ======
+      const LAYOUT_CONFIGS = {
+        breadthfirst: { name: 'breadthfirst', directed: true, spacingFactor: 1.5, padding: 50 },
+        cose: { name: 'cose', idealEdgeLength: 110, nodeOverlap: 20, padding: 40, animate: true, animationDuration: 600 },
+        circle: { name: 'circle', spacingFactor: 1.4, padding: 50 },
+      };
+      function setLayout(layoutKey, btn) {
+        if (!cy) return;
+        document.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        const cfg = LAYOUT_CONFIGS[layoutKey] || LAYOUT_CONFIGS.breadthfirst;
+        cy.layout(cfg).run();
+      }
+
+      // ====== Session 5: Render the tactic legend on top of the graph ======
+      function renderLegend(paths) {
+        const itemsEl = document.getElementById('legendItems');
+        if (!itemsEl) return;
+        // Find which tactics actually appear in the current paths
+        const seenTactics = new Set();
+        paths.forEach(p => p.steps.forEach(s => seenTactics.add(s.tactic)));
+        // Order by MITRE kill chain
+        const TACTIC_KILL_CHAIN = [
+          "Initial Access", "Execution", "Persistence", "Privilege Escalation",
+          "Defense Evasion", "Credential Access", "Discovery",
+          "Lateral Movement", "Collection", "Exfiltration", "Impact",
+        ];
+        itemsEl.innerHTML = TACTIC_KILL_CHAIN
+          .filter(t => seenTactics.has(t))
+          .map(t => {
+            const c = tacticColor[t] || '#5da9e9';
+            return '<div class="legend-item">' +
+                   '<div class="legend-dot" style="background:' + c + ';color:' + c + ';"></div>' +
+                   t + '</div>';
+          }).join('');
+        document.getElementById('legend').style.display = seenTactics.size ? '' : 'none';
+      }
+
+      // ====== Session 3: Risk by Tactic bar chart (pure SVG) ======
+      function renderTacticChart(series) {
+        const svg = document.getElementById('chartSvg');
+        const empty = document.getElementById('chartEmpty');
+        if (!series || series.length === 0) {
+          svg.style.display = 'none';
+          empty.style.display = '';
+          return;
+        }
+        empty.style.display = 'none';
+        svg.style.display = '';
+
+        const container = document.getElementById('chartContainer');
+        const W = container.clientWidth || 600;
+        const H = container.clientHeight || 230;
+        const padL = 90, padR = 14, padT = 12, padB = 22;
+        const innerW = W - padL - padR;
+        const innerH = H - padT - padB;
+        const maxCount = Math.max(...series.map(s => s.count), 1);
+        const barH = Math.min(26, (innerH - (series.length - 1) * 6) / series.length);
+        const gap = 6;
+
+        svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+        svg.innerHTML = '';
+
+        // Grid lines (vertical, count markers)
+        const ticks = 4;
+        for (let i = 0; i <= ticks; i++) {
+          const x = padL + (innerW * i) / ticks;
+          const tickVal = Math.round((maxCount * i) / ticks);
+          svg.innerHTML +=
+            '<line x1="' + x + '" y1="' + padT + '" x2="' + x + '" y2="' + (padT + innerH) +
+            '" stroke="rgba(93,169,233,0.10)" stroke-width="1"/>' +
+            '<text x="' + x + '" y="' + (H - 6) + '" fill="#6b7d96" font-family="JetBrains Mono"' +
+            ' font-size="9" text-anchor="middle">' + tickVal + '</text>';
+        }
+
+        // Bars
+        series.forEach((s, i) => {
+          const y = padT + i * (barH + gap);
+          const barW = (s.count / maxCount) * innerW;
+          const color = tacticColor[s.tactic] || '#5da9e9';
+
+          // Label (tactic name)
+          svg.innerHTML +=
+            '<text x="' + (padL - 8) + '" y="' + (y + barH / 2 + 3) + '" fill="#dfe8f5"' +
+            ' font-family="JetBrains Mono" font-size="10" text-anchor="end"' +
+            ' style="letter-spacing:0.5px">' +
+            (s.tactic.length > 14 ? s.tactic.substring(0, 14) + '…' : s.tactic) +
+            '</text>';
+
+          // Bar background (subtle)
+          svg.innerHTML +=
+            '<rect x="' + padL + '" y="' + y + '" width="' + innerW + '" height="' + barH +
+            '" fill="rgba(13,20,32,0.4)" rx="3"/>';
+
+          // Bar fill
+          svg.innerHTML +=
+            '<rect x="' + padL + '" y="' + y + '" width="' + barW + '" height="' + barH +
+            '" fill="' + color + '" rx="3" opacity="0.85">' +
+            '<animate attributeName="width" from="0" to="' + barW + '" dur="0.7s" fill="freeze"/>' +
+            '</rect>';
+
+          // Count label inside / outside bar
+          const labelX = barW > 40 ? padL + barW - 6 : padL + barW + 6;
+          const labelAnchor = barW > 40 ? 'end' : 'start';
+          const labelColor = barW > 40 ? '#04121a' : color;
+          svg.innerHTML +=
+            '<text x="' + labelX + '" y="' + (y + barH / 2 + 3) + '" fill="' + labelColor + '"' +
+            ' font-family="Chakra Petch" font-size="11" font-weight="700"' +
+            ' text-anchor="' + labelAnchor + '">' + s.count + '</text>';
+        });
+      }
+
+      // Hook to dashboard data event so chart, heatmap, AND connection pills refresh
+      window.addEventListener('cloudpath:data', (e) => {
+        renderTacticChart(e.detail.tactic_series || []);
+        renderHeatmap(e.detail);
+        if (e.detail.connected) updateConnPills(e.detail.connected);
+      });
+
+      // ====== Session 4: Cloud x Resource heatmap (CSS grid) ======
+      let activeHeatmapFilter = null;  // {cloud, category} when a cell is selected
+
+      function renderHeatmap(data) {
+        const grid = document.getElementById('heatmapGrid');
+        const empty = document.getElementById('heatmapEmpty');
+        const cells = data.matrix_cells || [];
+        const clouds = data.clouds || [];
+        const categories = data.categories || [];
+
+        if (!cells.length || !clouds.length) {
+          grid.style.display = 'none';
+          empty.style.display = '';
+          return;
+        }
+        empty.style.display = 'none';
+        grid.style.display = '';
+
+        // Find max count for color intensity scaling
+        const maxCount = Math.max(...cells.map(c => c.count), 1);
+
+        // Build a {cloud}_{category} -> count map
+        const lookup = {};
+        cells.forEach(c => { lookup[c.cloud + '|' + c.category] = c.count; });
+
+        // CSS Grid: 1 row of labels + N rows of clouds; 1 col of labels + M cols of categories
+        const cols = categories.length + 1;
+        const rows = clouds.length + 1;
+        grid.className = 'heatmap-table';
+        grid.style.gridTemplateColumns = '70px repeat(' + categories.length + ', 1fr)';
+        grid.style.gridTemplateRows = '24px repeat(' + clouds.length + ', 1fr)';
+
+        let html = '';
+        // Top-left corner empty
+        html += '<div></div>';
+        // Column headers
+        categories.forEach(cat => {
+          const isOther = (cat === 'Other');
+          const otherTip = (isOther && data.other_node_types && data.other_node_types.length)
+            ? ' title="Uncategorised node types: ' + data.other_node_types.join(', ') + '"'
+            : '';
+          html += '<div class="heatmap-cell col-label' + (isOther ? ' col-other' : '') + '"' +
+                  otherTip + '>' + cat + '</div>';
+        });
+        // Rows
+        clouds.forEach(cloud => {
+          html += '<div class="heatmap-cell label cloud-' + cloud + '">' + cloud.toUpperCase() + '</div>';
+          categories.forEach(cat => {
+            const count = lookup[cloud + '|' + cat] || 0;
+            if (count > 0) {
+              const intensity = count / maxCount;
+              // Use cloud color, scaled by intensity. AWS = orange, GCP = cyan.
+              const baseColor = cloud === 'aws' ? '255, 140, 66' : '0, 229, 255';
+              const bg = 'rgba(' + baseColor + ',' + (0.15 + intensity * 0.55) + ')';
+              const border = 'rgba(' + baseColor + ',' + (0.4 + intensity * 0.45) + ')';
+              html += '<div class="heatmap-cell data" data-cloud="' + cloud +
+                      '" data-category="' + cat + '" ' +
+                      'style="background:' + bg + ';border:1px solid ' + border + ';">' +
+                      '<span class="cell-count">' + count + '</span></div>';
+            } else {
+              html += '<div class="heatmap-cell" style="background:rgba(13,20,32,0.4);' +
+                      'border:1px dashed rgba(93,169,233,0.15);">' +
+                      '<span class="cell-empty">·</span></div>';
+            }
+          });
+        });
+        grid.innerHTML = html;
+
+        // Wire up cell clicks
+        grid.querySelectorAll('.heatmap-cell.data').forEach(cell => {
+          cell.addEventListener('click', () => {
+            const cloud = cell.dataset.cloud;
+            const category = cell.dataset.category;
+            const isAlreadyActive = (activeHeatmapFilter &&
+              activeHeatmapFilter.cloud === cloud &&
+              activeHeatmapFilter.category === category);
+
+            // Clear all active markers
+            grid.querySelectorAll('.heatmap-cell.active').forEach(c => c.classList.remove('active'));
+
+            if (isAlreadyActive) {
+              activeHeatmapFilter = null;
+              applyGraphFilter(null);
+              document.getElementById('heatmapHint').textContent = 'Click to filter graph';
+            } else {
+              activeHeatmapFilter = { cloud, category };
+              cell.classList.add('active');
+              applyGraphFilter(activeHeatmapFilter);
+              document.getElementById('heatmapHint').textContent =
+                'Filter: ' + cloud.toUpperCase() + ' · ' + category + ' (click again to clear)';
+            }
+          });
+        });
+      }
+
+      // Map node_type -> high-level category (must match backend mapping)
+      const NODE_CATEGORY = {
+        EC2Instance: 'Compute',
+        GCPInstance: 'Compute',
+        S3Bucket: 'Storage',
+        GCPBucket: 'Storage',
+        SecretsManagerSecret: 'Secret',
+        GCPServiceAccount: 'Identity',
+        AWSRole: 'Identity',
+        GCPRole: 'Identity',
+        EC2SecurityGroup: 'Network',
+        GCPFirewall: 'Network',
+      };
+
+      function applyGraphFilter(filter) {
+        if (!cy) return;
+        if (!filter) {
+          // Restore all nodes/edges
+          cy.nodes().style({ opacity: 1 });
+          cy.edges().style({ opacity: 1 });
+          return;
+        }
+        // Dim nodes that don't match filter; keep matching highlighted
+        cy.nodes().forEach(n => {
+          const ntype = n.data('ntype');
+          const ncloud = n.data('cloud');
+          const cat = NODE_CATEGORY[ntype] || 'Other';
+          const match = (cat === filter.category && ncloud === filter.cloud);
+          n.style('opacity', match ? 1 : 0.15);
+        });
+        // Edge opacity: keep visible only if both endpoints match
+        cy.edges().forEach(e => {
+          const src = e.source(), tgt = e.target();
+          const srcMatch = (NODE_CATEGORY[src.data('ntype')] === filter.category &&
+                            src.data('cloud') === filter.cloud);
+          const tgtMatch = (NODE_CATEGORY[tgt.data('ntype')] === filter.category &&
+                            tgt.data('cloud') === filter.cloud);
+          e.style('opacity', (srcMatch && tgtMatch) ? 1 : 0.1);
+        });
+      }
+
+      // ====== Connection status banner ======
+      function updateConnPills(connected) {
+        const awsEl = document.getElementById('connAws');
+        const gcpEl = document.getElementById('connGcp');
+        const awsLbl = document.getElementById('connAwsLabel');
+        const gcpLbl = document.getElementById('connGcpLabel');
+        const warn = document.getElementById('connWarn');
+
+        const awsOk = connected && connected.aws && connected.aws.connected;
+        const gcpOk = connected && connected.gcp && connected.gcp.connected;
+
+        awsEl.classList.toggle('connected', awsOk);
+        awsEl.classList.toggle('disconnected', !awsOk);
+        gcpEl.classList.toggle('connected', gcpOk);
+        gcpEl.classList.toggle('disconnected', !gcpOk);
+
+        awsLbl.textContent = awsOk
+          ? 'AWS · ' + (connected.aws.account_id || 'connected')
+          : 'AWS · not connected';
+        gcpLbl.textContent = gcpOk
+          ? 'GCP · ' + (connected.gcp.project_id || 'connected')
+          : 'GCP · not connected';
+
+        warn.classList.toggle('visible', !awsOk && !gcpOk);
+      }
+
+      async function refreshConnectionStatus() {
+        // Phase 7: pull per-user credential status from PostgreSQL via
+        // /api/credentials/status (NOT the old /connection-status which
+        // queried Neo4j globally and was misleading because Neo4j is
+        // shared across tenants).
+        try {
+          const res = await fetch('/api/credentials/status');
+          const data = await res.json();
+          if (data && (data.aws || data.gcp)) {
+            // The shape from /api/credentials/status is:
+            //   { aws: {connected, account_id, ...}, gcp: {connected, project_id, ...} }
+            // updateConnPills expects {connected: bool, account_id/project_id}.
+            updateConnPills({ aws: data.aws, gcp: data.gcp });
+          }
+        } catch (e) {
+          // Silently leave pills in "checking…" state if backend unreachable
+        }
+      }
+
+      // Initial check on page load (cheap, no engine call)
+      refreshConnectionStatus();
+
+      // ====== Initial page load — NO AUTO-SCAN ======
+      // The page must NOT trigger a fresh scan on open or refresh. It fetches
+      // /dashboard-cache (a cached result endpoint that does NOT call the
+      // engine). If the cache is empty (Flask just started), the page stays
+      // in empty state until the user clicks Run Scan.
+      async function loadFromCache() {
+        try {
+          const res = await fetch('/dashboard-cache');
+          const data = await res.json();
+          if (data.status === 'empty' || data.status !== 'ok') {
+            setStatus('live', 'Ready · click Run Scan to begin');
+            clearKpiSkeleton();
+            return;
+          }
+          // We have a cached result — restore the dashboard silently.
+          lastData = data;
+          setKpis(data.kpi);
+          render(data.paths);
+          window.dispatchEvent(new CustomEvent('cloudpath:data', { detail: data }));
+          const when = data.scanned_at
+            ? new Date(data.scanned_at * 1000).toLocaleTimeString()
+            : 'previous run';
+          setStatus(
+            'live',
+            'Showing cached scan from ' + when + ' · click Run Scan to refresh'
+          );
+        } catch (e) {
+          setStatus('live', 'Ready · click Run Scan to begin');
+          clearKpiSkeleton();
+        }
+      }
+      loadFromCache();
+
+      // ====== Session 5: Resize handling ======
+      // The chart and heatmap are sized to their containers. When the user
+      // resizes the browser window or toggles dev tools, their containers
+      // change size — but the SVG / grid won't re-layout unless we tell it
+      // to. ResizeObserver listens for container size changes and re-renders.
+      function debounce(fn, ms) {
+        let t = null;
+        return () => {
+          clearTimeout(t);
+          t = setTimeout(fn, ms);
+        };
+      }
+      const redraw = debounce(() => {
+        if (!lastData) return;
+        renderTacticChart(lastData.tactic_series || []);
+        renderHeatmap(lastData);
+        if (cy) cy.resize().fit(undefined, 50);
+      }, 120);
+
+      // Observe the chart container, heatmap container, and the Cytoscape
+      // wrapper. Any size change triggers a debounced redraw.
+      const ro = new ResizeObserver(redraw);
+      const chartEl = document.getElementById('chartContainer');
+      const heatmapEl = document.getElementById('heatmapContainer');
+      const cyEl = document.getElementById('cy-wrapper');
+      if (chartEl) ro.observe(chartEl);
+      if (heatmapEl) ro.observe(heatmapEl);
+      if (cyEl) ro.observe(cyEl);
+    </script>
+  </body>
+</html>
