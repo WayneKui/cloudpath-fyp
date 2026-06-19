@@ -551,13 +551,16 @@
       // ====================================================
       // Constants for the CloudFormation deep-link
       // ====================================================
-      // The template lives in CloudPath's public GitHub repo. CloudFormation
-      // can fetch templates from any HTTPS URL; raw.githubusercontent.com
-      // is the cleanest free option. If we ever move the template (e.g. to
-      // S3 in the scanner account), only this constant needs to change.
+      // The template MUST be hosted in S3 — AWS CloudFormation
+      // rejects raw.githubusercontent.com and other non-S3 URLs with
+      // "TemplateURL must be a supported URL". So although our
+      // GitHub repo has the YAML for transparency / version history,
+      // CloudFormation actually fetches it from S3 in the scanner
+      // account. If we ever change scanner accounts, only the
+      // bucket-name part below changes.
       const CF_TEMPLATE_URL =
-        "https://raw.githubusercontent.com/WayneKui/cloudpath-fyp/main/" +
-        "cloudformation/cloudpath-scanrole.yaml";
+        "https://cloudpath-fyp-templates.s3.amazonaws.com/" +
+        "cloudpath-scanrole.yaml";
 
       // Region the user lands in. Doesn't affect the role (IAM is global)
       // but CloudFormation Console needs A region in the URL. us-east-1
