@@ -47,6 +47,48 @@
         background-size: 46px 46px;
         mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
       }
+      /* Ambient gradient glow — adds depth so the page doesn't look flat.
+         Layers on top of the grid pattern; pointer-events: none so it
+         doesn't block clicks. */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(800px circle at 15% 0%,
+            rgba(0, 229, 255, 0.08), transparent 60%),
+          radial-gradient(700px circle at 85% 100%,
+            rgba(177, 74, 237, 0.06), transparent 60%),
+          radial-gradient(1200px circle at 50% 50%,
+            rgba(93, 169, 233, 0.04), transparent 70%);
+        animation: gradient-drift 32s ease-in-out infinite;
+      }
+      @keyframes gradient-drift {
+        0%, 100% { transform: translate(0, 0); }
+        33%      { transform: translate(40px, -30px); }
+        66%      { transform: translate(-30px, 40px); }
+      }
+      #cursor-glow {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 500px;
+        height: 500px;
+        margin-left: -250px;
+        margin-top: -250px;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0;
+        background: radial-gradient(circle,
+          rgba(0, 229, 255, 0.10) 0%,
+          rgba(0, 229, 255, 0.04) 35%,
+          transparent 60%);
+        transition: opacity 0.4s ease;
+        will-change: transform;
+      }
+      body:hover #cursor-glow { opacity: 1; }
       nav {
         position: sticky;
         top: 0;
@@ -109,6 +151,34 @@
         box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
         transition: 0.2s;
       }
+
+      /* Plan badge in nav. Duplicated across templates for now —
+         refactor into shared CSS later if it becomes painful. */
+      .plan-badge {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        text-decoration: none;
+        transition: opacity 0.2s ease;
+        align-self: center;
+      }
+      .plan-badge:hover { opacity: 0.85; }
+      .plan-badge.plan-free {
+        background: rgba(223, 232, 245, 0.1);
+        color: rgba(223, 232, 245, 0.7);
+        border: 1px solid rgba(223, 232, 245, 0.2);
+      }
+      .plan-badge.plan-plus {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #001018;
+      }
+      .plan-badge.plan-max {
+        background: linear-gradient(135deg, #ff7ac6, #b48bff);
+        color: #1a0033;
+      }
+
       .wrap {
         position: relative;
         z-index: 2;
@@ -262,7 +332,9 @@
         padding: 3px 8px;
         border-radius: 4px;
         text-align: center;
-        width: fit-content;
+        width: 100%;
+        box-sizing: border-box;
+        line-height: 1.3;
       }
       .rule-row .sev {
         font-family: "Chakra Petch";
@@ -678,6 +750,7 @@
     </style>
   </head>
   <body>
+    <div id="cursor-glow"></div>
     <nav>
       <a href="/" class="nav-logo"
         ><svg viewBox="0 0 24 24">
@@ -692,7 +765,15 @@
           <a href="/connect">Connect</a>
           <a href="/app">Scanner</a>
           <a href="/rules" class="active">Rules</a>
+          <a href="/history">History</a>
+          {% if current_user.subscription_tier == 'max' %}
+            <a href="/api-management">API</a>
+          {% endif %}
           <a href="/docs">Docs</a>
+          <a href="/billing" class="plan-badge plan-{{ current_user.subscription_tier }}"
+             title="Your current subscription tier. Click to manage.">
+            {{ current_user.subscription_tier|upper }}
+          </a>
           <a href="/logout" class="nav-cta">Logout</a>
         {% else %}
           <a href="/login" class="nav-cta">Sign in</a>
@@ -877,16 +958,17 @@
             <label>Cypher Detection Pattern</label>
             <textarea
               id="cypherIn"
-              oninput="updateYaml()"
+              oninput="updateYaml(); scheduleLiveValidation();"
               placeholder="MATCH (n:Label) WHERE n.property = 'value'&#10;RETURN n.id AS node_id, 'Label' AS node_type"
             ></textarea>
             <div class="hint">
               Must return at least: <b>node_id</b>, <b>node_type</b>. Direct access to your Neo4j
               graph.
             </div>
+            <div class="result-msg" id="cypherValidationBanner" style="margin-top: 10px"></div>
           </div>
         </div>
-        <div class="preview-label">Live YAML preview &middot; will be saved to /rules/ folder</div>
+        <div class="preview-label">Live YAML preview &middot; saved to your account, visible only to you</div>
         <div class="yaml-preview" id="yamlPreview"></div>
         <div class="btn-row">
           <button class="btn" id="saveBtn" onclick="saveRule()">&#43; Save Rule</button>
@@ -914,58 +996,84 @@
         Collection: "#ffb142",
         Exfiltration: "#ff5252",
       };
-      let rules = [
-        {
-          id: "T1190",
-          name: "Exploit Public-Facing Application",
-          tactic: "Initial Access",
-          severity: "high",
-          cloud: "aws",
-          desc: "An EC2 instance is in a security group allowing inbound SSH (port 22) from the internet.",
-          mode: "guided",
-          resource: "EC2Instance",
-          condProp: "open-port",
-          condOp: "=",
-          condVal: "22",
-        },
-        {
-          id: "T1078",
-          name: "Valid Accounts - Over-Privileged Role",
-          tactic: "Privilege Escalation",
-          severity: "critical",
-          cloud: "aws",
-          desc: "An EC2 instance carries an IAM role attached to an overly permissive managed policy.",
-          mode: "guided",
-          resource: "EC2Instance",
-          condProp: "attached-policy",
-          condOp: "contains",
-          condVal: "FullAccess",
-        },
-        {
-          id: "T1530",
-          name: "Data from Cloud Storage Object",
-          tactic: "Impact",
-          severity: "critical",
-          cloud: "aws",
-          desc: "An S3 bucket has a policy statement granting access to any principal (public).",
-          mode: "guided",
-          resource: "S3Bucket",
-          condProp: "principal",
-          condOp: "contains",
-          condVal: "*",
-        },
-      ];
-      let editingId = null;
+
+      let rules = [];
+      let editingDbId = null;
+
+      function builtinRuleFromRow(row) {
+        return {
+          id: row.id,
+          name: row.mitre_name,
+          tactic: row.tactic,
+          severity: row.severity,
+          cloud: row.cloud,
+          desc: row.description || "",
+          builtin: true,
+        };
+      }
+
+      function customRuleFromRow(row) {
+        return {
+          dbId: row.id,
+          id: row.rule_key,
+          name: row.mitre_name,
+          tactic: row.tactic,
+          severity: row.severity,
+          cloud: row.cloud,
+          desc: row.description || "",
+          mode: "advanced",
+          cypher: row.cypher,
+          builtin: false,
+        };
+      }
+
+      async function loadBuiltinRules() {
+        try {
+          const res = await fetch("/api/rules/builtin");
+          const data = await res.json();
+          if (!res.ok || data.status !== "ok") return;
+          rules = data.rules.map(builtinRuleFromRow).concat(rules.filter((r) => !r.builtin));
+          renderRules();
+        } catch (e) {
+          // Silent \u2014 custom rules (if already loaded) still render.
+        }
+      }
+
+      async function loadCustomRules() {
+        try {
+          const res = await fetch("/api/rules");
+          const data = await res.json();
+          if (!res.ok || data.status !== "ok") return;
+          rules = rules.filter((r) => r.builtin).concat(data.rules.map(customRuleFromRow));
+          renderRules();
+        } catch (e) {
+          // Silent \u2014 built-in rules still render fine without custom ones.
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s == null ? "" : s).replace(/[<>&"']/g, (c) => ({
+          "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;",
+        }[c]));
+      }
+
       function renderRules() {
         const list = document.getElementById("rulesList");
         Array.from(list.querySelectorAll(".rule-row")).forEach((r) => r.remove());
         rules.forEach((r) => {
           const row = document.createElement("div");
-          row.className = "rule-row" + (editingId === r.id ? " editing" : "");
+          row.className = "rule-row" + (editingDbId != null && editingDbId === r.dbId ? " editing" : "");
           const col = tacticColor[r.tactic] || "#5da9e9";
+          const actions = r.builtin
+            ? '<span class="rule-actions" style="opacity:.55;font-size:11px">Built-in &middot; read-only</span>'
+            : '<span class="rule-actions"><button class="icon-btn" title="Edit" onclick="editRule(' +
+              r.dbId +
+              ')">\u270e</button><button class="icon-btn danger" title="Delete" onclick="deleteRule(' +
+              r.dbId +
+              ')">\u{1F5D1}</button></span>';
           row.innerHTML =
             '<span class="id">' +
-            r.id +
+            escapeHtml(r.id) +
             '</span><span class="tactic" style="background:' +
             col +
             "22;color:" +
@@ -973,27 +1081,26 @@
             ";border:1px solid " +
             col +
             '44">' +
-            r.tactic +
+            escapeHtml(r.tactic) +
             '</span><div class="name">' +
-            r.name +
+            escapeHtml(r.name) +
             "<small>" +
-            (r.desc || "") +
+            escapeHtml(r.desc || "") +
             '</small></div><span class="sev sev-' +
-            r.severity +
+            escapeHtml(r.severity) +
             '">' +
-            r.severity.toUpperCase() +
+            escapeHtml(r.severity.toUpperCase()) +
             '</span><span class="cloud">' +
-            r.cloud.toUpperCase() +
-            '</span><span class="rule-actions"><button class="icon-btn" title="Edit" onclick="editRule(\'' +
-            r.id +
-            '\')">\u270e</button><button class="icon-btn danger" title="Delete" onclick="deleteRule(\'' +
-            r.id +
-            "')\">\u{1F5D1}</button></span>";
+            escapeHtml(r.cloud.toUpperCase()) +
+            "</span>" +
+            actions;
           list.appendChild(row);
         });
         document.getElementById("activeCount").textContent = rules.length;
       }
       renderRules();
+      loadBuiltinRules();
+      loadCustomRules();
       let mode = "guided";
       function setMode(m) {
         mode = m;
@@ -1002,7 +1109,7 @@
         const gs = document.getElementById("guidedSection");
         const as = document.getElementById("advSection");
         if (m === "guided") {
-          gs.style.display = "";
+          gs.style.display = "block";
           as.style.display = "none";
           gs.classList.remove("swap-flash");
           void gs.offsetWidth;
@@ -1011,7 +1118,10 @@
             "Build a rule by choosing dropdowns. The system writes the Cypher for you.";
         } else {
           gs.style.display = "none";
-          as.style.display = "";
+          // .adv-only has `display: none` in its CSS rule (initial-hide
+          // default) — an empty inline style wouldn't override that, it
+          // would just fall back to it. Must set an explicit value here.
+          as.style.display = "block";
           as.classList.remove("swap-flash");
           void as.offsetWidth;
           as.classList.add("swap-flash");
@@ -1019,6 +1129,7 @@
             "Write the Cypher detection pattern directly. Use a template to start fast.";
         }
         updateYaml();
+        scheduleLiveValidation();
       }
       const templates = {
         blank: "",
@@ -1034,6 +1145,7 @@
       function loadTemplate(k) {
         document.getElementById("cypherIn").value = templates[k] || "";
         updateYaml();
+        scheduleLiveValidation();
       }
       function buildCypherFromGuided() {
         const r = document.getElementById("resource").value;
@@ -1133,7 +1245,7 @@
           document.getElementById("builderTag").textContent = "Edit Rule";
           document.getElementById("builderTitle").textContent = "Modifying: " + rule.id;
           document.getElementById("builderStatus").textContent =
-            "EDITING " + rule.id + " \u00b7 changes save back to the same file";
+            "EDITING " + rule.id + " \u00b7 changes save back to your account";
           document.getElementById("builderStatus").classList.add("editing");
           document.getElementById("saveBtn").textContent = "Save Changes";
           document.getElementById("cancelEditBtn").style.display = "";
@@ -1146,10 +1258,10 @@
           document.getElementById("cancelEditBtn").style.display = "none";
         }
       }
-      function editRule(id) {
-        const r = rules.find((x) => x.id === id);
-        if (!r) return;
-        editingId = id;
+      function editRule(dbId) {
+        const r = rules.find((x) => x.dbId === dbId);
+        if (!r || r.builtin) return;
+        editingDbId = dbId;
         document.getElementById("techId").value = r.id;
         document.getElementById("techName").value = r.name;
         document.getElementById("tactic").value = r.tactic;
@@ -1159,6 +1271,7 @@
         if (r.mode === "advanced") {
           setMode("advanced");
           document.getElementById("cypherIn").value = r.cypher || "";
+          scheduleLiveValidation();
         } else {
           setMode("guided");
           if (r.resource) document.getElementById("resource").value = r.resource;
@@ -1172,69 +1285,144 @@
         document.getElementById("builderHead").scrollIntoView({ behavior: "smooth" });
       }
       function cancelEdit() {
-        editingId = null;
+        editingDbId = null;
         setBuilderMode(false);
         resetForm();
         renderRules();
       }
-      function deleteRule(id) {
-        if (!confirm("Delete rule " + id + "?")) return;
-        rules = rules.filter((r) => r.id !== id);
-        if (editingId === id) {
-          editingId = null;
+      async function deleteRule(dbId) {
+        const r = rules.find((x) => x.dbId === dbId);
+        if (!r || r.builtin) return;
+        if (!confirm("Delete rule " + r.id + "?")) return;
+        try {
+          const res = await fetch("/api/rules/" + dbId, { method: "DELETE" });
+          const data = await res.json();
+          if (!res.ok || data.status !== "ok") {
+            showMsg("\u2717 " + (data.message || "Could not delete rule."), "err");
+            return;
+          }
+        } catch (e) {
+          showMsg("\u2717 Network error \u2014 could not delete rule.", "err");
+          return;
+        }
+        rules = rules.filter((x) => x.dbId !== dbId);
+        if (editingDbId === dbId) {
+          editingDbId = null;
           setBuilderMode(false);
           resetForm();
         }
         renderRules();
+        showMsg("\u2713 Rule " + r.id + " deleted.", "ok");
       }
       function newRule() {
-        editingId = null;
+        editingDbId = null;
         setBuilderMode(false);
         resetForm();
         document.getElementById("builderHead").scrollIntoView({ behavior: "smooth" });
       }
-      function saveRule() {
+
+      // ====================================================
+      // Live Cypher safety validation — Advanced/Cypher mode only.
+      // ====================================================
+      let cypherValidateTimer = null;
+      let cypherIsSafe = true; // true until proven otherwise; Save's own
+                                 // server-side check is still authoritative
+
+      function hideValidationBanner() {
+        const banner = document.getElementById("cypherValidationBanner");
+        banner.className = "result-msg";
+        banner.textContent = "";
+        cypherIsSafe = true;
+        updateSaveButtonState();
+      }
+
+      function updateSaveButtonState() {
+        const btn = document.getElementById("saveBtn");
+        btn.disabled = mode === "advanced" && !cypherIsSafe;
+        btn.style.opacity = btn.disabled ? "0.5" : "";
+        btn.style.cursor = btn.disabled ? "not-allowed" : "";
+      }
+
+      function scheduleLiveValidation() {
+        clearTimeout(cypherValidateTimer);
+        if (mode !== "advanced") {
+          hideValidationBanner();
+          return;
+        }
+        const cypher = document.getElementById("cypherIn").value;
+        if (!cypher.trim()) {
+          hideValidationBanner();
+          return;
+        }
+        cypherValidateTimer = setTimeout(() => liveValidateCypher(cypher), 500);
+      }
+
+      async function liveValidateCypher(cypher) {
+        const banner = document.getElementById("cypherValidationBanner");
+        try {
+          const res = await fetch("/api/rules/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cypher }),
+          });
+          const data = await res.json();
+          if (data.status !== "ok") return; // network/server hiccup — leave banner as-is
+          cypherIsSafe = !!data.safe;
+          banner.className = "result-msg " + (data.safe ? "ok" : "err");
+          banner.textContent = (data.safe ? "✓ " : "✗ ") + data.message;
+          updateSaveButtonState();
+        } catch (e) {
+          // Silent — a failed live-validate check shouldn't block typing;
+          // the authoritative check still runs server-side on Save.
+        }
+      }
+
+      async function saveRule() {
         const id = document.getElementById("techId").value.trim();
         if (!id) {
           showMsg("\u2717 Technique ID is required.", "err");
           return;
         }
-        const r = {
-          id,
-          name: document.getElementById("techName").value,
+        const cypher =
+          mode === "advanced" ? document.getElementById("cypherIn").value : buildCypherFromGuided();
+        const payload = {
+          rule_key: id,
+          mitre_name: document.getElementById("techName").value,
           tactic: document.getElementById("tactic").value,
           severity: document.getElementById("severity").value,
           cloud: document.getElementById("cloud").value,
-          desc: document.getElementById("desc").value,
-          mode,
-          resource: document.getElementById("resource").value,
-          condProp: document.getElementById("condProp").value,
-          condOp: document.getElementById("condOp").value,
-          condVal: document.getElementById("condVal").value,
-          cypher: document.getElementById("cypherIn").value,
+          description: document.getElementById("desc").value,
+          cypher,
         };
-        if (editingId) {
-          const idx = rules.findIndex((x) => x.id === editingId);
-          if (idx >= 0) rules[idx] = r;
-          showMsg(
-            "\u2713 Rule " + id + " updated. (Backend save endpoint to write YAML coming next.)",
-            "ok",
-          );
-          editingId = null;
-          setBuilderMode(false);
-        } else {
-          if (rules.some((x) => x.id === id)) {
-            showMsg(
-              "\u2717 A rule with ID " + id + " already exists. Edit it or change the ID.",
-              "err",
-            );
+        const isEditing = editingDbId != null;
+        const url = isEditing ? "/api/rules/" + editingDbId : "/api/rules";
+        const method = isEditing ? "PUT" : "POST";
+        let data;
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          data = await res.json();
+          if (!res.ok || data.status !== "ok") {
+            showMsg("\u2717 " + (data.message || "Could not save rule."), "err");
             return;
           }
-          rules.push(r);
-          showMsg(
-            "\u2713 Rule " + id + " added. (Backend save endpoint to write YAML coming next.)",
-            "ok",
-          );
+        } catch (e) {
+          showMsg("\u2717 Network error \u2014 could not save rule.", "err");
+          return;
+        }
+        const saved = customRuleFromRow(data.rule);
+        if (isEditing) {
+          const idx = rules.findIndex((x) => x.dbId === editingDbId);
+          if (idx >= 0) rules[idx] = saved;
+          showMsg("\u2713 Rule " + saved.id + " updated and saved to your account.", "ok");
+          editingDbId = null;
+          setBuilderMode(false);
+        } else {
+          rules.push(saved);
+          showMsg("\u2713 Rule " + saved.id + " saved to your account.", "ok");
         }
         renderRules();
         resetForm();
@@ -1251,6 +1439,7 @@
         document.getElementById("condProp").selectedIndex = 0;
         document.getElementById("condOp").selectedIndex = 0;
         updateYaml();
+        hideValidationBanner();
       }
       function copyYaml() {
         navigator.clipboard.writeText(document.getElementById("yamlPreview").textContent);
@@ -1263,6 +1452,22 @@
         setTimeout(() => (r.className = "result-msg"), 3500);
       }
       updateYaml();
+    </script>
+    <script>
+      (function(){
+        const g = document.getElementById('cursor-glow');
+        if (!g) return;
+        let tx = window.innerWidth / 2, ty = window.innerHeight / 2;
+        let cx = tx, cy = ty;
+        document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+        function loop(){
+          cx += (tx - cx) * 0.12;
+          cy += (ty - cy) * 0.12;
+          g.style.transform = 'translate(' + cx + 'px, ' + cy + 'px)';
+          requestAnimationFrame(loop);
+        }
+        loop();
+      })();
     </script>
   </body>
 </html>

@@ -138,6 +138,35 @@
         box-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
         transform: translateY(-1px);
       }
+
+      /* Plan badge in nav — shows user's subscription tier */
+      .plan-badge {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        text-decoration: none;
+        transition: opacity 0.2s ease;
+        align-self: center;
+      }
+      .plan-badge:hover {
+        opacity: 0.85;
+      }
+      .plan-badge.plan-free {
+        background: rgba(223, 232, 245, 0.1);
+        color: rgba(223, 232, 245, 0.7);
+        border: 1px solid rgba(223, 232, 245, 0.2);
+      }
+      .plan-badge.plan-plus {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #001018;
+      }
+      .plan-badge.plan-max {
+        background: linear-gradient(135deg, #ff7ac6, #b48bff);
+        color: #1a0033;
+      }
+
       .hero {
         min-height: 100vh;
         display: flex;
@@ -621,6 +650,169 @@
           font-size: 11px;
         }
       }
+
+      /* ============================================================
+         Pricing section (subscription tiers)
+         ============================================================ */
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        max-width: 1100px;
+        margin: 40px auto 0;
+        padding: 0 20px;
+      }
+      .price-card {
+        background: rgba(5, 8, 15, 0.6);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        transition: border-color 0.25s ease, transform 0.25s ease;
+      }
+      .price-card:hover {
+        border-color: rgba(0, 229, 255, 0.4);
+        transform: translateY(-3px);
+      }
+      .price-card.featured {
+        border-color: var(--accent);
+        background: linear-gradient(
+          180deg,
+          rgba(0, 229, 255, 0.05) 0%,
+          rgba(5, 8, 15, 0.6) 100%
+        );
+      }
+      .price-card.featured .price-popular-tag {
+        position: absolute;
+        top: -12px;
+        right: 24px;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #001018;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 12px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      .price-tier-name {
+        font-size: 14px;
+        color: var(--accent);
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        margin: 0 0 8px;
+      }
+      .price-tier-tagline {
+        font-size: 13px;
+        color: rgba(223, 232, 245, 0.65);
+        margin: 0 0 24px;
+        min-height: 36px;
+      }
+      .price-amount {
+        font-size: 40px;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1;
+        margin: 0;
+      }
+      .price-amount .price-currency {
+        font-size: 18px;
+        vertical-align: top;
+        margin-right: 2px;
+        opacity: 0.7;
+      }
+      .price-amount .price-period {
+        font-size: 14px;
+        font-weight: 400;
+        color: rgba(223, 232, 245, 0.55);
+        margin-left: 4px;
+      }
+      .price-features {
+        list-style: none;
+        padding: 0;
+        margin: 28px 0 0;
+        flex-grow: 1;
+      }
+      .price-features li {
+        font-size: 14px;
+        color: rgba(223, 232, 245, 0.85);
+        padding: 8px 0;
+        padding-left: 24px;
+        position: relative;
+        line-height: 1.5;
+      }
+      .price-features li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        top: 8px;
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .price-features li.muted {
+        color: rgba(223, 232, 245, 0.35);
+      }
+      .price-features li.muted::before {
+        content: "—";
+        color: rgba(223, 232, 245, 0.3);
+      }
+      .price-cta {
+        margin-top: 24px;
+        display: inline-block;
+        text-align: center;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: none;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .price-cta.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #001018;
+      }
+      .price-cta.primary:hover {
+        opacity: 0.9;
+      }
+      .price-cta.secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .price-cta.secondary:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .price-cta.current {
+        background: rgba(0, 229, 255, 0.1);
+        color: var(--accent);
+        border: 1px solid rgba(0, 229, 255, 0.3);
+        cursor: default;
+      }
+      .pricing-note {
+        text-align: center;
+        margin-top: 32px;
+        font-size: 13px;
+        color: rgba(223, 232, 245, 0.55);
+        padding: 0 20px;
+      }
+      .pricing-note a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      @media (max-width: 880px) {
+        .pricing-grid {
+          grid-template-columns: 1fr;
+          max-width: 420px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -640,7 +832,15 @@
           <a href="/connect">Connect</a>
           <a href="/app">Scanner</a>
           <a href="/rules">Rules</a>
+          <a href="/history">History</a>
+          {% if current_user.subscription_tier == 'max' %}
+            <a href="/api-management">API</a>
+          {% endif %}
           <a href="/docs">Docs</a>
+          <a href="/billing" class="plan-badge plan-{{ current_user.subscription_tier }}"
+             title="Your current subscription tier. Click to manage.">
+            {{ current_user.subscription_tier|upper }}
+          </a>
           <a href="/logout" class="nav-cta">Logout</a>
         {% else %}
           <a href="/login" class="nav-cta">Sign in</a>
@@ -818,13 +1018,123 @@
             <td class="us yes">Yes</td>
           </tr>
           <tr class="row-rev reveal d6">
-            <td>Open / free</td>
+            <td>Open source + free tier</td>
             <td class="no">Paid tiers</td>
             <td class="no">$$$$</td>
             <td class="us yes">Yes</td>
           </tr>
         </table>
       </div>
+    </section>
+    <!-- ============================================================
+         Pricing tiers section
+         Renders three cards: Free / Plus / Max.
+         Behavior depends on auth state:
+           - Not logged in: cards show 'Sign up' buttons (redirect to /register)
+           - Logged in: cards show 'Subscribe' for upgradable tiers, 'Current plan' for active one
+         The actual checkout flow is handled by /api/billing/create-checkout/<tier>
+         which we wire up in billing.py (tomorrow's work).
+         ============================================================ -->
+    <section id="pricing" data-mode="calm">
+      <div class="m-zoom reveal">
+        <div class="sec-tag">Pricing</div>
+        <div class="sec-title">
+          Simple plans.<br />Real attack-path detection.
+        </div>
+      </div>
+      <div class="pricing-grid">
+        <!-- Free tier -->
+        <div class="price-card reveal d1">
+          <p class="price-tier-name">Free</p>
+          <p class="price-tier-tagline">
+            For learning, evaluation, and small environments.
+          </p>
+          <p class="price-amount">
+            <span class="price-currency">RM</span>0<span class="price-period">/month</span>
+          </p>
+          <ul class="price-features">
+            <li>On-demand scans</li>
+            <li>Multi-cloud (AWS + GCP)</li>
+            <li>Attack-path detection</li>
+            <li>MITRE ATT&CK mapping</li>
+            <li class="muted">Scheduled scans</li>
+            <li class="muted">API access</li>
+            <li class="muted">Priority support</li>
+          </ul>
+          {% if current_user.is_authenticated %}
+            {% if current_user.subscription_tier == 'free' %}
+              <span class="price-cta current">Current plan</span>
+            {% else %}
+              <a href="/billing" class="price-cta secondary">Manage plan</a>
+            {% endif %}
+          {% else %}
+            <a href="/register" class="price-cta secondary">Sign up free</a>
+          {% endif %}
+        </div>
+        <!-- Plus tier (featured) -->
+        <div class="price-card featured reveal d2">
+          <span class="price-popular-tag">Most popular</span>
+          <p class="price-tier-name">Plus</p>
+          <p class="price-tier-tagline">
+            For active defenders who want recurring visibility.
+          </p>
+          <p class="price-amount">
+            <span class="price-currency">RM</span>9<span class="price-period">/month</span>
+          </p>
+          <ul class="price-features">
+            <li>Everything in Free</li>
+            <li>Scheduled scans (daily / weekly)</li>
+            <li>Scan history retention</li>
+            <li class="muted">API access</li>
+            <li class="muted">Priority support</li>
+          </ul>
+          {% if current_user.is_authenticated %}
+            {% if current_user.subscription_tier == 'plus' %}
+              <span class="price-cta current">Current plan</span>
+            {% else %}
+              <button
+                class="price-cta primary"
+                onclick="subscribeToTier('plus')"
+              >Subscribe to Plus</button>
+            {% endif %}
+          {% else %}
+            <a href="/login?next=/#pricing" class="price-cta primary">Get started</a>
+          {% endif %}
+        </div>
+        <!-- Max tier -->
+        <div class="price-card reveal d3">
+          <p class="price-tier-name">Max</p>
+          <p class="price-tier-tagline">
+            For teams integrating CloudPath into their SOC workflow.
+          </p>
+          <p class="price-amount">
+            <span class="price-currency">RM</span>29<span class="price-period">/month</span>
+          </p>
+          <ul class="price-features">
+            <li>Everything in Plus</li>
+            <li>API access (REST)</li>
+            <li>API keys with rotation</li>
+            <li>Webhooks for new findings</li>
+            <li>Priority support</li>
+            <li>Compliance export (CSV / JSON)</li>
+          </ul>
+          {% if current_user.is_authenticated %}
+            {% if current_user.subscription_tier == 'max' %}
+              <span class="price-cta current">Current plan</span>
+            {% else %}
+              <button
+                class="price-cta secondary"
+                onclick="subscribeToTier('max')"
+              >Subscribe to Max</button>
+            {% endif %}
+          {% else %}
+            <a href="/login?next=/#pricing" class="price-cta secondary">Get started</a>
+          {% endif %}
+        </div>
+      </div>
+      <p class="pricing-note">
+        Prices in MYR. Cancel anytime. Open source under MIT — self-host for free.
+      </p>
     </section>
     <div class="cta-band" data-mode="aurora">
       <div class="m-zoom reveal">
@@ -1117,6 +1427,78 @@
           })();
         }
       })();
+    </script>
+    <!-- ============================================================
+         Pricing subscribe handler
+         When user clicks Subscribe button, calls our backend to create
+         a LemonSqueezy checkout session, then redirects to the hosted
+         checkout page. After payment, LemonSqueezy redirects user to
+         /billing/success which polls for webhook confirmation.
+
+         This function is harmless when called before backend is built:
+         if /api/billing/create-checkout/<tier> returns 404, the user
+         sees an alert and nothing breaks. Backend implementation is
+         tomorrow's work.
+         ============================================================ -->
+    <script>
+      async function subscribeToTier(tier) {
+        if (!["plus", "max"].includes(tier)) {
+          alert("Unknown tier: " + tier);
+          return;
+        }
+        const btn = event && event.target;
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Loading...";
+        }
+        try {
+          // Pre-flight: if the user already has an active subscription,
+          // LemonSqueezy will reject a second checkout for the same customer.
+          // Detect this case upfront and redirect to the billing page where
+          // they can manage / cancel the existing subscription.
+          const statusRes = await fetch("/api/billing/check-status", {
+            credentials: "same-origin",
+          });
+          if (statusRes.ok) {
+            const status = await statusRes.json();
+            if (status.tier && status.tier !== "free") {
+              alert(
+                "You're already subscribed to " + status.tier.toUpperCase() +
+                ".\n\nTo switch tiers, please cancel your current " +
+                "subscription on the Billing page first. Plan-change " +
+                "(direct upgrade/downgrade without cancellation) is on the " +
+                "roadmap."
+              );
+              window.location.href = "/billing";
+              return;
+            }
+          }
+
+          const res = await fetch("/api/billing/create-checkout/" + tier, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          if (!res.ok) {
+            const err = await res.text();
+            throw new Error(
+              "Checkout creation failed (" + res.status + "). " +
+              "If this is the first time, the backend may still be in development."
+            );
+          }
+          const data = await res.json();
+          if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+          } else {
+            throw new Error("No checkout URL returned");
+          }
+        } catch (e) {
+          alert("Could not start subscription: " + e.message);
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Subscribe to " + tier.charAt(0).toUpperCase() + tier.slice(1);
+          }
+        }
+      }
     </script>
   </body>
 </html>

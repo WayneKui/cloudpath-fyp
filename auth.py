@@ -26,6 +26,8 @@ Design notes:
 import os
 import re
 import secrets
+import time
+from collections import defaultdict
 from flask import (
     Blueprint, request, render_template, redirect, url_for, jsonify, flash,
 )
@@ -40,12 +42,69 @@ from neo4j.exceptions import ClientError
 
 
 # ============================================================
+# Login rate limiting (brute-force protection)
+# ============================================================
+# Simple in-memory sliding-window limiter. No new dependency, no Redis —
+# fine for a single-process deployment. Two independent counters:
+#   - per (ip, email): stops repeated guessing against one account
+#   - per ip alone: stops password-spraying across many accounts
+# State resets on process restart; documented limitation for a
+# multi-instance production deployment (would need a shared store).
+_LOGIN_ATTEMPTS_BY_IP_EMAIL = defaultdict(list)
+_LOGIN_ATTEMPTS_BY_IP = defaultdict(list)
+_LOGIN_MAX_ATTEMPTS_PER_ACCOUNT = 5
+_LOGIN_MAX_ATTEMPTS_PER_IP = 20
+_LOGIN_WINDOW_SECONDS = 15 * 60  # 15 minutes
+
+
+def _client_ip() -> str:
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def _prune(bucket: list, now: float) -> list:
+    return [t for t in bucket if now - t < _LOGIN_WINDOW_SECONDS]
+
+
+def _login_rate_limited(email: str) -> bool:
+    now = time.time()
+    ip = _client_ip()
+
+    ip_email_key = f"{ip}:{email}"
+    ip_email_attempts = _prune(_LOGIN_ATTEMPTS_BY_IP_EMAIL[ip_email_key], now)
+    _LOGIN_ATTEMPTS_BY_IP_EMAIL[ip_email_key] = ip_email_attempts
+
+    ip_attempts = _prune(_LOGIN_ATTEMPTS_BY_IP[ip], now)
+    _LOGIN_ATTEMPTS_BY_IP[ip] = ip_attempts
+
+    return (
+        len(ip_email_attempts) >= _LOGIN_MAX_ATTEMPTS_PER_ACCOUNT
+        or len(ip_attempts) >= _LOGIN_MAX_ATTEMPTS_PER_IP
+    )
+
+
+def _record_failed_login(email: str) -> None:
+    now = time.time()
+    ip = _client_ip()
+    _LOGIN_ATTEMPTS_BY_IP_EMAIL[f"{ip}:{email}"].append(now)
+    _LOGIN_ATTEMPTS_BY_IP[ip].append(now)
+
+
+def _clear_login_attempts(email: str) -> None:
+    ip = _client_ip()
+    _LOGIN_ATTEMPTS_BY_IP_EMAIL.pop(f"{ip}:{email}", None)
+    # Deliberately don't clear the per-IP bucket on success — a
+    # successful login shouldn't reset the spray counter for that IP.
+
+
+# ============================================================
 # Constants
 # ============================================================
 
-# Your scanner AWS account ID. Every user's trust policy must allow
-# this account to call sts:AssumeRole on their role. Centralised here
-# so when you eventually rotate the scanner account it's one change.
+# Scanner AWS account ID. Every user's trust policy must allow
+# this account to call sts:AssumeRole on their role. 
 SCANNER_AWS_ACCOUNT_ID = os.environ.get(
     "CLOUDPATH_SCANNER_AWS_ACCOUNT_ID", "456375341368"
 )
@@ -53,15 +112,6 @@ SCANNER_AWS_ACCOUNT_ID = os.environ.get(
 
 def generate_external_id(user_id_hint: int = None) -> str:
     """Generate a per-user external ID used in IAM role trust policies.
-
-    Format: 'cloudpath-tenant-<id_hint>-<8 random hex chars>'.
-    Recognisable in CloudTrail logs, unguessable suffix, AWS-legal
-    characters only. We accept user_id_hint as an argument because
-    the user row doesn't exist yet at the moment we generate this
-    — we want the id IN the external ID so we sometimes use a
-    sentinel and rewrite after insert, or pass through a separate
-    deterministic value at signup time. Here we use a hint that may
-    be replaced later if needed.
     """
     suffix = secrets.token_hex(4)   # 8 hex chars, ~32 bits of entropy
     return f"cloudpath-tenant-{user_id_hint or 'new'}-{suffix}"
@@ -135,11 +185,18 @@ def load_user(user_id_str: str):
 # ============================================================
 # Email + password validators
 # ============================================================
-# These are intentionally simple. We don't want to reject valid
-# emails because of a too-strict regex; basic shape-check is fine
-# and the DB UNIQUE constraint handles duplicates.
+# Email: reject obviously-malformed shapes (leading/trailing dot,
+# consecutive dots, missing/1-char TLD) without trying to be a full
+# RFC 5322 parser — that's a rabbit hole with no real payoff here.
+#
+# Password: composition rules (upper + lower + digit + special char)
+# plus a common-password blocklist and a repeated/sequential-pattern
+# check. Length alone let "12345678" through — this closes that.
 
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_EMAIL_RE = re.compile(
+    r"^(?!\.)(?!.*\.\.)[A-Za-z0-9_.+-]+(?<!\.)"
+    r"@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$"
+)
 
 
 def _validate_email(email: str) -> str | None:
@@ -154,13 +211,45 @@ def _validate_email(email: str) -> str | None:
     return None
 
 
+# A small, illustrative blocklist of the most common weak passwords —
+# not exhaustive (a real deployment would check against a corpus like
+# the Have I Been Pwned Pwned Passwords list), but enough to stop the
+# obvious cases like "password" / "12345678".
+_COMMON_WEAK_PASSWORDS = {
+    "password", "password1", "password123", "12345678", "123456789",
+    "1234567890", "qwerty123", "qwertyuiop", "11111111", "00000000",
+    "letmein123", "admin1234", "welcome123", "iloveyou123", "monkey123",
+    "dragon123", "football123", "baseball123", "sunshine123", "princess123",
+    "abcdefgh", "abc123456", "changeme123", "trustno1", "superman123",
+}
+
+# Runs used to detect sequential characters, e.g. "12345678" or
+# "abcdefgh" (checked both forwards and backwards).
+_SEQUENTIAL_RUNS = ("0123456789" * 2, "abcdefghijklmnopqrstuvwxyz")
+
+
+def _is_sequential_or_repeated(password: str) -> bool:
+    lowered = password.lower()
+    if len(set(lowered)) == 1:
+        return True  # e.g. "aaaaaaaa"
+    for run in _SEQUENTIAL_RUNS:
+        for i in range(len(run) - 7):
+            window = run[i:i + 8]
+            if window in lowered or window[::-1] in lowered:
+                return True
+    return False
+
+
+_SPECIAL_CHARS = set("!@#$%^&*()_+-=[]{}|;:'\",.<>/?`~\\")
+
+
 def _validate_password(password: str) -> str | None:
     """Return None if password is OK, otherwise an error string.
 
-    Honest minimums: at least 8 chars, no upper bound. We don't enforce
-    "must contain a digit / symbol" rules — NIST 800-63B explicitly
-    recommends against those because they push users toward predictable
-    patterns. Length + uniqueness is what matters.
+    Rules: 8-200 chars, and must contain all four of: uppercase
+    letter, lowercase letter, digit, special character. Also rejects
+    known-common passwords and repeated/sequential patterns (e.g.
+    "Aa111111" technically satisfies composition but is still weak).
     """
     if not password or not isinstance(password, str):
         return "Password is required."
@@ -168,6 +257,21 @@ def _validate_password(password: str) -> str | None:
         return "Password must be at least 8 characters."
     if len(password) > 200:
         return "Password is too long."
+    if password.lower() in _COMMON_WEAK_PASSWORDS:
+        return "This password is too common. Please choose a stronger one."
+
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    has_special = any(c in _SPECIAL_CHARS for c in password)
+    if not (has_upper and has_lower and has_digit and has_special):
+        return (
+            "Password must contain an uppercase letter, a lowercase "
+            "letter, a number, and a special character (e.g. !@#$%)."
+        )
+
+    if _is_sequential_or_repeated(password):
+        return "Password is too predictable (repeated or sequential characters)."
     return None
 
 
@@ -244,19 +348,6 @@ def register_page():
 @auth_bp.route("/login", methods=["POST"])
 def login_action():
     """Handle login form submission.
-
-    Steps:
-      1. Read email + password from the form.
-      2. Look up the user by email.
-      3. Verify the password using bcrypt's constant-time check.
-      4. On success: call flask-login's login_user(); redirect onward.
-      5. On failure: re-render the form with a generic error message.
-
-    Honest security notes:
-      - The error message intentionally does NOT distinguish "no such
-        user" from "wrong password". This prevents email enumeration.
-      - Password verification is via bcrypt.checkpw() which is constant-
-        time, mitigating timing-based username enumeration.
     """
     email = (request.form.get("email") or "").strip().lower()
     password = request.form.get("password") or ""
@@ -268,10 +359,17 @@ def login_action():
             error="Please enter your email and password.",
         ), 400
 
+    if _login_rate_limited(email):
+        return render_template(
+            "login.html", next_url=next_url,
+            error="Too many login attempts. Please wait a few minutes and try again.",
+        ), 429
+
     user_row = db.get_user_by_email_sync(email)
     if user_row is None or not db.verify_password(password, user_row["password_hash"]):
         # Same error for both: keeps attackers from confirming which
         # emails are registered.
+        _record_failed_login(email)
         return render_template(
             "login.html", next_url=next_url,
             error="Email or password is incorrect.",
@@ -283,6 +381,7 @@ def login_action():
             error="This account is disabled.",
         ), 403
 
+    _clear_login_attempts(email)
     user = User(user_row)
     login_user(user, remember=True)
     db.update_last_login_sync(user.id)
@@ -297,20 +396,6 @@ def login_action():
 @auth_bp.route("/register", methods=["POST"])
 def register_action():
     """Handle registration form submission.
-
-    Steps:
-      1. Read + validate fields.
-      2. Hash the password and INSERT a row into users (transactional).
-      3. Create the user's per-tenant Neo4j database.
-      4. Log the new user in immediately (so they don't need to retype).
-      5. Redirect to /connect (first-time onboarding).
-
-    Failure handling:
-      - If the email is already taken, show a friendly error.
-      - If Neo4j db creation fails AFTER user insert: the user row
-        exists but their tenant graph doesn't. We log the error and
-        let the user proceed — Phase 6 code will lazily create the
-        db on first use as a safety net.
     """
     email = (request.form.get("email") or "").strip().lower()
     password = request.form.get("password") or ""
@@ -437,6 +522,21 @@ def init_auth(app):
     app.secret_key = os.environ.get(
         "FLASK_SECRET_KEY",
         "dev-only-secret-change-in-production-fly5HfRpkbQ7vL2x",
+    )
+
+    # Session cookie hardening:
+    #   HTTPONLY  - JS (incl. an XSS payload) can't read the cookie.
+    #   SAMESITE  - "Lax" blocks the cookie being sent on cross-site
+    #               POSTs (CSRF-style requests), while still allowing
+    #               normal top-level navigation (e.g. following a link).
+    #   SECURE    - cookie only sent over HTTPS. Forced off in dev
+    #               (localhost is plain HTTP) and on for CLOUDPATH_ENV=
+    #               production. Set CLOUDPATH_ENV=production once the
+    #               app is behind HTTPS (EC2 + reverse proxy / ALB).
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.environ.get("CLOUDPATH_ENV", "development") == "production",
     )
 
     login_manager.init_app(app)

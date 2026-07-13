@@ -33,15 +33,6 @@ Design notes:
     parse it, validate the shape, then store it encrypted. The
     test-connection endpoint instantiates a Google client and lists
     one project to verify.
-
-Honest engineering caveats:
-  - The "test connection" endpoint actually CALLS the cloud API. This
-    means a successful test consumes a few requests against the user's
-    AWS/GCP account. For STS-AssumeRole that's free; for GCP we just
-    do a project-lookup call.
-  - We do NOT attempt to provision IAM resources on the user's behalf.
-    The user clicks the CloudFormation deploy link themselves; the
-    connect page only saves the resulting role ARN.
 """
 import os
 import json
@@ -317,12 +308,6 @@ def delete_credential(credential_id):
 def credential_status():
     """Return the per-cloud connection state for the LOGGED-IN user.
 
-    This is the honest "is THIS user connected?" check that the Connect
-    page uses for its tab badges. It deliberately does NOT look at Neo4j
-    data — Neo4j is shared across all tenants until Phase 6/7. Until
-    then, the badge must reflect 'do I have credentials saved' rather
-    than 'is there any data anywhere'.
-
     Returns shape:
       {
         "aws": {
@@ -345,15 +330,16 @@ def credential_status():
     except Exception as e:
         return jsonify({"error": f"lookup failed: {type(e).__name__}"}), 500
 
-    aws_state = {"connected": False, "verified": False,
+    aws_state = {"connected": False, "verified": False, "id": None,
                  "label": None, "account_id": None, "expires_at": None}
-    gcp_state = {"connected": False, "verified": False,
+    gcp_state = {"connected": False, "verified": False, "id": None,
                  "label": None, "project_id": None}
 
     for row in rows:
         if row["cloud"] == "aws" and not aws_state["connected"]:
             aws_state["connected"] = True
             aws_state["verified"] = row.get("last_refreshed_at") is not None
+            aws_state["id"] = row.get("id")
             aws_state["label"] = row.get("label")
             aws_state["expires_at"] = (
                 row["expires_at"].isoformat() if row.get("expires_at") else None
@@ -370,6 +356,7 @@ def credential_status():
             # we have the JSON. "verified" is unused for GCP but kept
             # for symmetry with AWS.
             gcp_state["verified"] = True
+            gcp_state["id"] = row.get("id")
             gcp_state["label"] = row.get("label")
             cred = row.get("credential") or {}
             gcp_state["project_id"] = cred.get("project_id")

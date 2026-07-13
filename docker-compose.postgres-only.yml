@@ -7,18 +7,6 @@
 # databases will coexist on different ports:
 #   - Neo4j     (your existing container)  bolt://localhost:7687
 #   - PostgreSQL (this new container)      postgresql://localhost:5432
-#
-# Run:
-#   docker-compose -f docker-compose.postgres-only.yml up -d
-#
-# Stop later:
-#   docker-compose -f docker-compose.postgres-only.yml stop
-#
-# Wipe (DEV ONLY — destroys all user data):
-#   docker-compose -f docker-compose.postgres-only.yml down -v
-#
-# Later phases will consolidate everything into a single
-# docker-compose.yml when we Dockerize the Flask app.
 
 services:
   postgres:

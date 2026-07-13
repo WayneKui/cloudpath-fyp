@@ -44,6 +44,48 @@
         background-size: 44px 44px;
         mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, #000 40%, transparent 100%);
       }
+      /* Ambient gradient glow — adds depth so the page doesn't look flat.
+         Layers on top of the grid pattern; pointer-events: none so it
+         doesn't block clicks. */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(800px circle at 15% 0%,
+            rgba(0, 229, 255, 0.08), transparent 60%),
+          radial-gradient(700px circle at 85% 100%,
+            rgba(177, 74, 237, 0.06), transparent 60%),
+          radial-gradient(1200px circle at 50% 50%,
+            rgba(93, 169, 233, 0.04), transparent 70%);
+        animation: gradient-drift 32s ease-in-out infinite;
+      }
+      @keyframes gradient-drift {
+        0%, 100% { transform: translate(0, 0); }
+        33%      { transform: translate(40px, -30px); }
+        66%      { transform: translate(-30px, 40px); }
+      }
+      #cursor-glow {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 500px;
+        height: 500px;
+        margin-left: -250px;
+        margin-top: -250px;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0;
+        background: radial-gradient(circle,
+          rgba(0, 229, 255, 0.10) 0%,
+          rgba(0, 229, 255, 0.04) 35%,
+          transparent 60%);
+        transition: opacity 0.4s ease;
+        will-change: transform;
+      }
+      body:hover #cursor-glow { opacity: 1; }
 
       /* ---------- Nav (matching your existing pages) ---------- */
       .top-nav {
@@ -89,6 +131,34 @@
         box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
       }
 
+      /* Plan badge in nav. Note: index.html uses --accent-2 (hyphen)
+         where other templates use --accent2 (no hyphen). Duplicated
+         across templates for now — refactor into shared CSS later. */
+      .plan-badge {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        text-decoration: none;
+        transition: opacity 0.2s ease;
+        align-self: center;
+      }
+      .plan-badge:hover { opacity: 0.85; }
+      .plan-badge.plan-free {
+        background: rgba(223, 232, 245, 0.1);
+        color: rgba(223, 232, 245, 0.7);
+        border: 1px solid rgba(223, 232, 245, 0.2);
+      }
+      .plan-badge.plan-plus {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #001018;
+      }
+      .plan-badge.plan-max {
+        background: linear-gradient(135deg, #ff7ac6, #b48bff);
+        color: #1a0033;
+      }
+
       /* ---------- Scan header (close to your old one) ---------- */
       .scan-header {
         position: relative; z-index: 2;
@@ -126,6 +196,170 @@
       .scan-btn.loading {
         opacity: 0.6; cursor: wait; pointer-events: none;
         background: linear-gradient(135deg, var(--warn), var(--danger));
+      }
+
+      .schedule-btn {
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid rgba(0, 229, 255, 0.35);
+        padding: 13px 22px;
+        border-radius: 9px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .schedule-btn:hover {
+        background: rgba(0, 229, 255, 0.08);
+        border-color: var(--accent);
+        transform: translateY(-2px);
+      }
+      .schedule-btn.locked {
+        color: rgba(223, 232, 245, 0.5);
+        border-color: rgba(223, 232, 245, 0.2);
+      }
+      .schedule-btn.locked:hover {
+        background: rgba(223, 232, 245, 0.05);
+        border-color: rgba(223, 232, 245, 0.4);
+        color: rgba(223, 232, 245, 0.8);
+        transform: none;
+      }
+      .schedule-status {
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        color: rgba(223, 232, 245, 0.6);
+        margin-left: 8px;
+      }
+      .schedule-status.active {
+        color: var(--accent);
+      }
+      .schedule-status.paused {
+        color: var(--warn, #ffc864);
+      }
+
+      /* ---------- Schedule modal ---------- */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 5, 12, 0.75);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .modal-backdrop.open {
+        display: flex;
+      }
+      .modal-panel {
+        background: linear-gradient(135deg, #0c1320 0%, #060a14 100%);
+        border: 1px solid rgba(0, 229, 255, 0.25);
+        border-radius: 14px;
+        padding: 32px;
+        max-width: 480px;
+        width: 92%;
+        box-shadow: 0 0 60px rgba(0, 229, 255, 0.15);
+      }
+      .modal-panel h2 {
+        font-family: "Chakra Petch";
+        font-size: 20px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin: 0 0 8px;
+      }
+      .modal-panel .modal-sub {
+        font-size: 13px;
+        color: rgba(223, 232, 245, 0.6);
+        margin: 0 0 24px;
+      }
+      .modal-field {
+        margin-bottom: 18px;
+      }
+      .modal-field label {
+        display: block;
+        font-family: "JetBrains Mono";
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(223, 232, 245, 0.55);
+        margin-bottom: 6px;
+      }
+      .modal-field select,
+      .modal-field input[type="time"] {
+        width: 100%;
+        background: rgba(2, 5, 12, 0.7);
+        border: 1px solid rgba(93, 169, 233, 0.3);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 7px;
+        font-family: "JetBrains Mono";
+        font-size: 14px;
+        outline: none;
+      }
+      .modal-field select:focus,
+      .modal-field input[type="time"]:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.12);
+      }
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 24px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      .modal-btn {
+        padding: 10px 20px;
+        border-radius: 7px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        cursor: pointer;
+        border: none;
+        transition: 0.2s;
+      }
+      .modal-btn.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #04121a;
+      }
+      .modal-btn.primary:hover { opacity: 0.9; }
+      .modal-btn.secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid rgba(223, 232, 245, 0.25);
+      }
+      .modal-btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+      .modal-btn.warn {
+        background: transparent;
+        color: #ffc864;
+        border: 1px solid rgba(255, 200, 100, 0.35);
+      }
+      .modal-btn.warn:hover { background: rgba(255, 200, 100, 0.08); }
+      .modal-btn.danger {
+        background: transparent;
+        color: #ff7a7a;
+        border: 1px solid rgba(255, 122, 122, 0.4);
+      }
+      .modal-btn.danger:hover { background: rgba(255, 122, 122, 0.08); }
+      .modal-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .modal-info {
+        background: rgba(0, 229, 255, 0.05);
+        border: 1px solid rgba(0, 229, 255, 0.15);
+        border-radius: 7px;
+        padding: 12px 14px;
+        margin-top: 16px;
+        font-size: 12px;
+        color: rgba(223, 232, 245, 0.75);
+        line-height: 1.5;
       }
 
       /* ---------- Scan action group (button + checkbox + cred indicators) ---------- */
@@ -731,9 +965,181 @@
         font-family: "JetBrains Mono"; font-size: 12px;
         padding: 30px; margin-top: 20px;
       }
+
+      /* Scan running indicator in the nav — appears while a scan
+         (manual OR scheduled) is in progress anywhere in the system.
+         Pulses gently so it reads as "live state" without being loud. */
+      .scan-running-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 140, 66, 0.35);
+        background: rgba(255, 140, 66, 0.08);
+        color: var(--warn, #ff8c42);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        animation: srb-pulse 2s ease-in-out infinite;
+      }
+      .scan-running-badge .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--warn, #ff8c42);
+        box-shadow: 0 0 8px var(--warn, #ff8c42);
+        animation: srb-dot 1.2s ease-in-out infinite;
+      }
+      @keyframes srb-pulse {
+        0%, 100% { border-color: rgba(255, 140, 66, 0.35); }
+        50%      { border-color: rgba(255, 140, 66, 0.65); }
+      }
+      @keyframes srb-dot {
+        0%, 100% { opacity: 1;   transform: scale(1); }
+        50%      { opacity: 0.5; transform: scale(0.8); }
+      }
+
+      /* Toast notifications - slide in from top-right, auto-dismiss */
+      .toast-stack {
+        position: fixed;
+        top: 90px;
+        right: 24px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+        max-width: 380px;
+      }
+      .toast {
+        pointer-events: auto;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 18px;
+        background: rgba(10, 15, 28, 0.94);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--border);
+        border-left-width: 4px;
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 13px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        animation: toast-in 0.25s ease-out;
+      }
+      .toast.leaving { animation: toast-out 0.2s ease-in forwards; }
+      .toast.success { border-left-color: var(--ok, #2ee6a0); }
+      .toast.error   { border-left-color: var(--danger, #ff3860); }
+      .toast.info    { border-left-color: var(--accent, #00e5ff); }
+      .toast .toast-icon {
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 700;
+        flex-shrink: 0;
+        width: 20px;
+        text-align: center;
+      }
+      .toast.success .toast-icon { color: var(--ok, #2ee6a0); }
+      .toast.error .toast-icon   { color: var(--danger, #ff3860); }
+      .toast.info .toast-icon    { color: var(--accent, #00e5ff); }
+      .toast .toast-body { flex: 1; min-width: 0; }
+      .toast .toast-title {
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 3px;
+      }
+      .toast .toast-msg {
+        color: var(--text-dim, #6b7d96);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .toast .toast-close {
+        cursor: pointer;
+        color: var(--text-dim, #6b7d96);
+        font-size: 16px;
+        line-height: 1;
+        padding: 0 4px;
+        flex-shrink: 0;
+      }
+      .toast .toast-close:hover { color: var(--text, #dfe8f5); }
+      @keyframes toast-in {
+        from { transform: translateX(110%); opacity: 0; }
+        to   { transform: translateX(0);    opacity: 1; }
+      }
+      @keyframes toast-out {
+        from { transform: translateX(0);    opacity: 1; }
+        to   { transform: translateX(110%); opacity: 0; }
+      }
+      @media (max-width: 700px) {
+        .toast-stack { top: 78px; right: 12px; left: 12px; max-width: none; }
+      }
     </style>
   </head>
   <body>
+    <div id="cursor-glow"></div>
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+    {% if current_user.subscription_tier in ('plus', 'max') %}
+    <div class="modal-backdrop" id="scheduleModal" onclick="closeScheduleModalOnBackdrop(event)">
+      <div class="modal-panel" onclick="event.stopPropagation()">
+        <h2>Schedule Scan</h2>
+        <p class="modal-sub">
+          CloudPath will run a full scan automatically at your chosen time.
+          You'll see results in the Scanner dashboard and in Scan History.
+        </p>
+
+        <div class="modal-field">
+          <label for="schedFreq">Frequency</label>
+          <select id="schedFreq" onchange="onFreqChange()">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
+        </div>
+
+        <div class="modal-field" id="schedDayField" style="display:none;">
+          <label for="schedDay">Day of week</label>
+          <select id="schedDay">
+            <option value="0">Monday</option>
+            <option value="1">Tuesday</option>
+            <option value="2">Wednesday</option>
+            <option value="3">Thursday</option>
+            <option value="4">Friday</option>
+            <option value="5">Saturday</option>
+            <option value="6">Sunday</option>
+          </select>
+        </div>
+
+        <div class="modal-field">
+          <label for="schedTime">Time of day (MYT, UTC+8)</label>
+          <input type="time" id="schedTime" value="09:00" />
+        </div>
+
+        <div class="modal-info" id="schedNextRunInfo" style="display:none;">
+          Next run: <span id="schedNextRunText">—</span>
+        </div>
+
+        <div class="modal-actions">
+          <button class="modal-btn danger" id="schedDeleteBtn"
+                  onclick="deleteSchedule()" style="display:none;">
+            Delete schedule
+          </button>
+          <button class="modal-btn warn" id="schedPauseBtn"
+                  onclick="togglePauseSchedule()" style="display:none;">
+            Pause
+          </button>
+          <button class="modal-btn secondary" onclick="closeScheduleModal()">
+            Cancel
+          </button>
+          <button class="modal-btn primary" onclick="saveSchedule()">
+            Save schedule
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <nav class="top-nav">
       <a href="/" class="nav-logo">
         <svg viewBox="0 0 24 24">
@@ -743,12 +1149,24 @@
         CloudPath
       </a>
       <div class="nav-links">
+        <span id="scanRunningBadge" class="scan-running-badge" style="display:none;"
+              title="A scan is currently running in the background">
+          <span class="dot"></span><span id="scanRunningLabel">Scan running…</span>
+        </span>
         <a href="/">Home</a>
         {% if current_user.is_authenticated %}
           <a href="/connect">Connect</a>
           <a href="/app" class="active">Scanner</a>
           <a href="/rules">Rules</a>
+          <a href="/history">History</a>
+          {% if current_user.subscription_tier == 'max' %}
+            <a href="/api-management">API</a>
+          {% endif %}
           <a href="/docs">Docs</a>
+          <a href="/billing" class="plan-badge plan-{{ current_user.subscription_tier }}"
+             title="Your current subscription tier. Click to manage.">
+            {{ current_user.subscription_tier|upper }}
+          </a>
           <a href="/logout" class="nav-cta">Logout</a>
         {% else %}
           <a href="/login" class="nav-cta">Sign in</a>
@@ -771,6 +1189,18 @@
       </div>
       <div class="scan-actions">
         <button class="scan-btn" id="scanBtn" onclick="runScan()">▶ Run Scan</button>
+        {% if current_user.subscription_tier in ('plus', 'max') %}
+          <button class="schedule-btn" id="scheduleBtn" onclick="openScheduleModal()">
+            ⏱ Schedule
+          </button>
+          <span class="schedule-status" id="scheduleStatus">Loading…</span>
+        {% else %}
+          <button class="schedule-btn locked"
+                  title="Scheduled scans are a Plus tier feature. Click to upgrade."
+                  onclick="window.location.href='/billing'">
+            ⏱ Schedule · Plus
+          </button>
+        {% endif %}
         <label class="full-pipeline-toggle" title="Tick to run the full ingestion pipeline (Cartography + ingestors + Prowler + merge + detection). Takes 5-30 minutes. Pipeline runs in the background; the page stays responsive.">
           <input type="checkbox" id="fullPipelineCheck">
           <span class="ftxt">Full re-ingestion</span>
@@ -936,6 +1366,128 @@
       let cy = null;
       let lastData = null;
 
+      // ====== Toast notifications ======
+      // Small pop-up notifications shown top-right when async events happen
+      // (scan completes, credentials refreshed, etc). Auto-dismiss after
+      // `duration` ms; click X to close early.
+      function showToast(kind, title, msg, duration) {
+        kind = kind || "info";
+        duration = duration ?? 5000;
+        const stack = document.getElementById("toastStack");
+        if (!stack) return;
+        const el = document.createElement("div");
+        el.className = "toast " + kind;
+        const icon = kind === "success" ? "✓"
+                   : kind === "error"   ? "×"
+                   : "•";
+        el.innerHTML = `
+          <div class="toast-icon">${icon}</div>
+          <div class="toast-body">
+            <div class="toast-title"></div>
+            <div class="toast-msg"></div>
+          </div>
+          <div class="toast-close" aria-label="Close">×</div>
+        `;
+        // Use textContent to avoid HTML injection from KPI counts / messages
+        el.querySelector(".toast-title").textContent = title || "";
+        el.querySelector(".toast-msg").textContent   = msg   || "";
+        const dismiss = () => {
+          el.classList.add("leaving");
+          setTimeout(() => el.remove(), 200);
+        };
+        el.querySelector(".toast-close").addEventListener("click", dismiss);
+        stack.appendChild(el);
+        if (duration > 0) setTimeout(dismiss, duration);
+      }
+
+      // ====== Scheduled-scan tracker (via /api/history polling) ======
+      // Polls the user's scan_history for rows currently in "running"
+      // state. When a running row transitions to success/failure —
+      // which happens when a background scheduled scan finishes — we
+      // show a toast, force-refresh the dashboard, and hide the
+      // "Scan running…" nav badge.
+      //
+      // Runs every 15s (cheap DB query, small JSON). Also fires when
+      // the manual scan flow completes, but the dedup below prevents
+      // double toasts because we track already-notified row ids.
+      const _notifiedScanIds = new Set();
+      let _lastRunningIds = new Set();
+      const _scanBadge = document.getElementById("scanRunningBadge");
+      const _scanBadgeLabel = document.getElementById("scanRunningLabel");
+
+      function _fmtBadgeLabel(rows) {
+        if (rows.length === 0) return "";
+        const trig = rows[0].triggered_by;
+        return trig === "scheduled" ? "Scheduled scan running…"
+             : trig === "manual"    ? "Scan running…"
+             :                        "Scan running…";
+      }
+
+      async function pollRunningScans() {
+        try {
+          const res = await fetch("/api/history");
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.status !== "ok") return;
+          const rows = data.history || [];
+
+          // Set of ids CURRENTLY in "running" state
+          const nowRunning = new Set(
+            rows.filter(r => r.status === "running").map(r => r.id)
+          );
+
+          // Rows that WERE running last poll but are NOT running now →
+          // they just finished. Look up their final state and toast.
+          const finished = [];
+          for (const id of _lastRunningIds) {
+            if (!nowRunning.has(id) && !_notifiedScanIds.has(id)) {
+              const row = rows.find(r => r.id === id);
+              if (row && (row.status === "success" || row.status === "failure")) {
+                finished.push(row);
+                _notifiedScanIds.add(id);
+              }
+            }
+          }
+
+          for (const row of finished) {
+            const trig = row.triggered_by === "scheduled" ? "Scheduled scan" : "Scan";
+            if (row.status === "success") {
+              const paths = row.paths_found ?? 0;
+              const crit  = row.critical_paths ?? 0;
+              const high  = row.high_paths ?? 0;
+              const kind  = (crit + high) > 0 ? "error" : "success";
+              const msg   = (crit + high) > 0
+                ? `${crit} critical, ${high} high — review the graph`
+                : `${paths} attack path(s) detected`;
+              showToast(kind, `${trig} complete`, msg, 8000);
+            } else {
+              showToast("error", `${trig} failed`,
+                row.error_message || "See scan history for details", 8000);
+            }
+            // Trigger dashboard refresh (via the existing auto-refresh
+            // helper) so KPIs update immediately, not on next 90s tick.
+            try { autoRefreshDashboard(); } catch (_) {}
+          }
+
+          // Update nav badge visibility
+          if (nowRunning.size > 0) {
+            const runningRows = rows.filter(r => r.status === "running");
+            _scanBadgeLabel.textContent = _fmtBadgeLabel(runningRows);
+            _scanBadge.style.display = "inline-flex";
+          } else {
+            _scanBadge.style.display = "none";
+          }
+
+          _lastRunningIds = nowRunning;
+        } catch (e) {
+          // Silent — this poll is best-effort
+          console.warn("pollRunningScans error:", e);
+        }
+      }
+      // Initial call, then every 15s.
+      pollRunningScans();
+      setInterval(pollRunningScans, 15000);
+
       // ====== Status / KPI helpers ======
       function setStatus(state, text) {
         const dot = document.getElementById("statusDot");
@@ -1078,11 +1630,20 @@
                 "Pipeline complete · " + (data.result.paths || []).length + " attack path(s)");
               document.getElementById("pipelineOverlay").classList.add("done");
               document.getElementById("pipelineHeading").textContent = "Pipeline complete";
+              const nPaths = (data.result.paths || []).length;
+              const k = data.result.kpi || {};
+              const crit = k.critical || 0, high = k.high || 0;
+              const alertKind = (crit + high) > 0 ? "error" : "success";
+              const alertMsg = (crit + high) > 0
+                ? `${crit} critical, ${high} high — review the graph`
+                : `${nPaths} attack path(s) detected`;
+              showToast(alertKind, "Scan complete", alertMsg, 7000);
             } else {
               document.getElementById("pipelineOverlay").classList.add("failed");
               document.getElementById("pipelineHeading").textContent =
                 "Pipeline finished with errors";
               setStatus("error", data.error || "Pipeline finished with errors");
+              showToast("error", "Scan failed", data.error || "Pipeline finished with errors", 8000);
             }
           }
         } catch (e) {
@@ -1174,6 +1735,55 @@
       refreshCredStatus();
       // Re-check every 60s so the pills reflect cred refreshes
       setInterval(refreshCredStatus, 60000);
+
+      // ====== Dashboard auto-refresh polling ======
+      // Every 90s, silently re-fetch dashboard data. If it changed
+      // (background scheduled scan finished, or another tab ran a
+      // scan), update KPIs + graph and show a subtle toast so the
+      // user knows their view is now current.
+      //
+      // Skips the poll while a manual pipeline is running to avoid
+      // clobbering the mid-scan overlay state.
+      async function autoRefreshDashboard() {
+        // Don't step on a running manual scan
+        if (pipelinePollTimer) return;
+        try {
+          const res = await fetch("/dashboard-data");
+          if (!res.ok) return;
+          const data = await res.json();
+          if (!data || data.status !== "ok") return;
+
+          // Detect meaningful change: compare kpi totals + path count.
+          const prev = lastData || {};
+          const prevKpi = prev.kpi || {};
+          const newKpi  = data.kpi  || {};
+          const prevN = (prev.paths || []).length;
+          const newN  = (data.paths || []).length;
+          const changed = (
+            prevN !== newN ||
+            prevKpi.critical !== newKpi.critical ||
+            prevKpi.high     !== newKpi.high     ||
+            prevKpi.medium   !== newKpi.medium   ||
+            prevKpi.low      !== newKpi.low
+          );
+          if (!changed) return;
+
+          // Skip toast on first load (nothing to compare against)
+          const firstLoad = (lastData === null);
+          lastData = data;
+          setKpis(newKpi);
+          render(data.paths || []);
+          window.dispatchEvent(new CustomEvent("cloudpath:data", { detail: data }));
+          if (!firstLoad) {
+            showToast("info", "Dashboard updated",
+              `New scan results detected — ${newN} attack path(s)`, 6000);
+          }
+        } catch (e) {
+          // Silent — don't spam user with transient network errors
+          console.warn("autoRefreshDashboard error:", e);
+        }
+      }
+      setInterval(autoRefreshDashboard, 90000);
 
       // ====== Render (preserved from your original scanner, with cloud tags) ======
       function render(paths) {
@@ -1743,5 +2353,167 @@
       if (heatmapEl) ro.observe(heatmapEl);
       if (cyEl) ro.observe(cyEl);
     </script>
+    <script>
+      (function(){
+        const g = document.getElementById('cursor-glow');
+        if (!g) return;
+        let tx = window.innerWidth / 2, ty = window.innerHeight / 2;
+        let cx = tx, cy = ty;
+        document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+        function loop(){
+          cx += (tx - cx) * 0.12;
+          cy += (ty - cy) * 0.12;
+          g.style.transform = 'translate(' + cx + 'px, ' + cy + 'px)';
+          requestAnimationFrame(loop);
+        }
+        loop();
+      })();
+    </script>
+    {% if current_user.subscription_tier in ('plus', 'max') %}
+    <script>
+      let currentSchedule = null;
+
+      async function refreshScheduleStatus() {
+        const el = document.getElementById('scheduleStatus');
+        if (!el) return;
+        try {
+          const res = await fetch('/api/schedule', { credentials: 'same-origin' });
+          const data = await res.json();
+          if (!data || data.status !== 'ok' || !data.schedule) {
+            currentSchedule = null;
+            el.textContent = 'No schedule';
+            el.className = 'schedule-status';
+            return;
+          }
+          currentSchedule = data.schedule;
+          const s = data.schedule;
+          const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+          const time = s.time_of_day.slice(0,5);
+          let descr;
+          if (s.schedule_frequency === 'daily') {
+            descr = 'Daily at ' + time + ' MYT';
+          } else {
+            descr = days[s.day_of_week] + ' at ' + time + ' MYT';
+          }
+          if (s.is_paused) {
+            el.textContent = '⏸ ' + descr + ' (paused)';
+            el.className = 'schedule-status paused';
+          } else {
+            el.textContent = '⏱ ' + descr;
+            el.className = 'schedule-status active';
+          }
+        } catch (e) {
+          el.textContent = 'Schedule status unavailable';
+        }
+      }
+
+      function openScheduleModal() {
+        const modal = document.getElementById('scheduleModal');
+        if (!modal) return;
+        if (currentSchedule) {
+          document.getElementById('schedFreq').value = currentSchedule.schedule_frequency;
+          if (currentSchedule.schedule_frequency === 'weekly') {
+            document.getElementById('schedDay').value = currentSchedule.day_of_week;
+          }
+          document.getElementById('schedTime').value = currentSchedule.time_of_day.slice(0,5);
+          document.getElementById('schedDeleteBtn').style.display = 'inline-block';
+          document.getElementById('schedPauseBtn').style.display = 'inline-block';
+          document.getElementById('schedPauseBtn').textContent =
+            currentSchedule.is_paused ? 'Resume' : 'Pause';
+        } else {
+          document.getElementById('schedFreq').value = 'daily';
+          document.getElementById('schedTime').value = '09:00';
+          document.getElementById('schedDeleteBtn').style.display = 'none';
+          document.getElementById('schedPauseBtn').style.display = 'none';
+        }
+        onFreqChange();
+        modal.classList.add('open');
+      }
+
+      function closeScheduleModal() {
+        document.getElementById('scheduleModal').classList.remove('open');
+      }
+      function closeScheduleModalOnBackdrop(e) {
+        if (e.target === document.getElementById('scheduleModal')) closeScheduleModal();
+      }
+
+      function onFreqChange() {
+        const freq = document.getElementById('schedFreq').value;
+        document.getElementById('schedDayField').style.display =
+          freq === 'weekly' ? 'block' : 'none';
+      }
+
+      async function saveSchedule() {
+        const freq = document.getElementById('schedFreq').value;
+        const day = parseInt(document.getElementById('schedDay').value, 10);
+        const time = document.getElementById('schedTime').value;
+        if (!time) {
+          alert('Please pick a time of day.');
+          return;
+        }
+        try {
+          const res = await fetch('/api/schedule', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              frequency: freq,
+              day_of_week: freq === 'weekly' ? day : null,
+              time_of_day: time,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.status !== 'ok') {
+            throw new Error(data.message || 'Save failed');
+          }
+          closeScheduleModal();
+          await refreshScheduleStatus();
+        } catch (e) {
+          alert('Could not save schedule: ' + e.message);
+        }
+      }
+
+      async function togglePauseSchedule() {
+        if (!currentSchedule) return;
+        const newPaused = !currentSchedule.is_paused;
+        try {
+          const res = await fetch('/api/schedule/pause', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paused: newPaused }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.status !== 'ok') {
+            throw new Error(data.message || 'Pause toggle failed');
+          }
+          closeScheduleModal();
+          await refreshScheduleStatus();
+        } catch (e) {
+          alert('Could not change schedule state: ' + e.message);
+        }
+      }
+
+      async function deleteSchedule() {
+        if (!confirm('Delete this schedule? You can create a new one anytime.')) return;
+        try {
+          const res = await fetch('/api/schedule', {
+            method: 'DELETE',
+            credentials: 'same-origin',
+          });
+          const data = await res.json();
+          if (!res.ok || data.status !== 'ok') {
+            throw new Error(data.message || 'Delete failed');
+          }
+          closeScheduleModal();
+          await refreshScheduleStatus();
+        } catch (e) {
+          alert('Could not delete schedule: ' + e.message);
+        }
+      }
+
+      refreshScheduleStatus();
+    </script>
+    {% endif %}
   </body>
 </html>

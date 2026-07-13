@@ -25,25 +25,6 @@ Why a daemon thread (not a separate process or APScheduler):
     wins, no duplication. We just call it slightly more often.
   - At FYP scale (1-10 users, a handful of credentials each), one
     thread doing one DB query every 5 minutes is essentially free.
-
-Honest design caveats:
-  - This is NOT a high-availability solution. If Flask crashes mid-
-    refresh, the credential stays at its current expires_at and the
-    next worker tick will pick it up. Worst case: a credential is
-    stale for one extra refresh interval (~5 min).
-  - There's no leader election. With multiple Flask processes, every
-    process tries to refresh. asyncpg + the database's row-level
-    locking keeps this correct but inefficient. For FYP scope this
-    is fine; documented as future work.
-  - sts:AssumeRole has a default duration of 1 hour. We don't request
-    longer because some roles set MaxSessionDuration=1h. If a user's
-    role allows longer sessions and we want fewer refreshes, we'd
-    pass DurationSeconds=3600 explicitly (already is the default).
-
-Logging:
-  - Every refresh attempt logs to stdout with a clear prefix
-    ([refresh_worker]) so it's distinguishable from Flask access
-    logs in your terminal.
 """
 import os
 import sys
@@ -107,9 +88,6 @@ def refresh_aws_credential(cred_row: dict) -> tuple[bool, str | None]:
         "aws_external_id": "cloudpath-tenant-3-abc123",
         ...
       }
-
-    Returns (ok, error_message). error_message is suitable for logging,
-    not for user display (may contain AWS internal codes).
     """
     role_arn = cred_row.get("aws_role_arn")
     external_id = cred_row.get("aws_external_id")
@@ -217,8 +195,6 @@ def _worker_loop() -> None:
 def start_refresh_worker() -> None:
     """Start the worker thread. Safe to call multiple times; second
     and subsequent calls within the same process are no-ops.
-
-    Honest note about Flask debug mode:
       When app.run(debug=True) is used, Flask's reloader spawns a
       child process. This module gets imported in BOTH the parent
       (supervisor) and the child (actual server), so the worker
@@ -227,11 +203,6 @@ def start_refresh_worker() -> None:
           UPDATEs in update_credential_refresh
         - Worst case: we make one extra AssumeRole call per cycle,
           which costs nothing
-      To run a single worker in development you can either:
-        - Set app.run(debug=False) (you lose hot-reload)
-        - Or accept the duplication (the per-process logs make it
-          obvious what's happening)
-      In production (no debug mode), this issue does not occur.
     """
     global _worker_thread
     if _worker_thread is not None and _worker_thread.is_alive():

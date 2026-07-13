@@ -36,6 +36,7 @@ aws-config.txt
 # =============================================================
 .env
 .env.*
+!.env.example
 *.env
 secrets.txt
 secrets/

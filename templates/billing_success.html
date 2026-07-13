@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Subscription Processing — CloudPath</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #05080f;
+      --accent: #00e5ff;
+      --accent2: #5da9e9;
+      --text: #dfe8f5;
+      --border: rgba(93, 169, 233, 0.16);
+      --muted: rgba(223, 232, 245, 0.6);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .card {
+      background: rgba(5, 8, 15, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+    }
+    .spinner {
+      width: 64px;
+      height: 64px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      margin: 0 auto 28px;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .check {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      margin: 0 auto 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #001018;
+      font-size: 32px;
+      font-weight: 700;
+    }
+    h1 {
+      font-size: 24px;
+      margin: 0 0 12px;
+      font-weight: 600;
+    }
+    p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0 0 16px;
+    }
+    .btn {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #001018;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .btn.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .timeout-note {
+      margin-top: 24px;
+      font-size: 12px;
+      color: rgba(223, 232, 245, 0.4);
+    }
+    .tier-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #001018;
+      margin: 0 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <!-- Initial state: spinner + "processing" message.
+         updated by JS once polling detects tier change -->
+    <div id="loading-state">
+      <div class="spinner"></div>
+      <h1>Processing your subscription</h1>
+      <p>
+        We're waiting for LemonSqueezy to confirm your payment. This
+        usually takes 2–10 seconds.
+      </p>
+      <p id="poll-info" class="timeout-note">Checking...</p>
+    </div>
+    <div id="success-state" style="display:none;">
+      <div class="check">✓</div>
+      <h1>You're on <span id="success-tier" class="tier-badge">PLUS</span></h1>
+      <p>Your subscription is active. Welcome to the upgraded tier!</p>
+      <a href="/app" class="btn">Open Scanner</a>
+      <a href="/billing" class="btn secondary">Manage Subscription</a>
+    </div>
+    <div id="timeout-state" style="display:none;">
+      <h1>Confirmation taking longer than expected</h1>
+      <p>
+        Your payment was likely successful, but we haven't received the
+        webhook confirmation yet. This can happen if there's a network
+        delay or if our server lost the webhook tunnel.
+      </p>
+      <p>
+        Refresh the billing page in a few moments to check your status.
+        If you see your tier hasn't updated within 5 minutes, contact
+        support.
+      </p>
+      <a href="/billing" class="btn">Go to Billing</a>
+      <a href="/" class="btn secondary">Back to Home</a>
+    </div>
+  </div>
+
+  <script>
+    /*
+     * Polling logic.
+     *
+     * After the user returns from LemonSqueezy, our database may not yet
+     * reflect the new tier — the webhook arrives asynchronously and can
+     * take a few seconds. So this page polls /api/billing/check-status
+     * every 2 seconds, watching for the user's tier to change from 'free'
+     * to 'plus' or 'max'.
+     *
+     * Three terminal states:
+     *   - Tier updated -> show success state
+     *   - Polling exceeds 60s -> show timeout state
+     *   - Network error during polling -> retry; eventually times out
+     */
+    const POLL_INTERVAL_MS = 2000;
+    const MAX_POLL_DURATION_MS = 60_000;   // 60s
+    const startTime = Date.now();
+    let pollCount = 0;
+
+    async function poll() {
+      pollCount += 1;
+      const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+      document.getElementById("poll-info").textContent =
+        `Checking... (${elapsedSec}s elapsed, ${pollCount} attempts)`;
+
+      try {
+        const res = await fetch("/api/billing/check-status", {
+          credentials: "same-origin",
+        });
+        if (!res.ok) throw new Error("status " + res.status);
+        const data = await res.json();
+        if (data.status === "ok" && data.tier && data.tier !== "free") {
+          // Tier updated! Show success.
+          document.getElementById("loading-state").style.display = "none";
+          document.getElementById("success-state").style.display = "block";
+          document.getElementById("success-tier").textContent =
+            data.tier.toUpperCase();
+          return;   // Stop polling
+        }
+      } catch (e) {
+        // Network blip — keep retrying, don't show error to user yet.
+        console.warn("poll error:", e);
+      }
+
+      // Check if we've exceeded the timeout
+      if (Date.now() - startTime > MAX_POLL_DURATION_MS) {
+        document.getElementById("loading-state").style.display = "none";
+        document.getElementById("timeout-state").style.display = "block";
+        return;
+      }
+
+      // Schedule next poll
+      setTimeout(poll, POLL_INTERVAL_MS);
+    }
+
+    // Kick off polling immediately on page load
+    poll();
+  </script>
+</body>
+</html>

@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudPath — Scan History</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #05080f;
+        --bg2: #0a0f1c;
+        --accent: #00e5ff;
+        --accent2: #5da9e9;
+        --crit: #b14aed;
+        --danger: #ff3860;
+        --warn: #ff8c42;
+        --ok: #2ee6a0;
+        --text: #dfe8f5;
+        --dim: #6b7d96;
+        --border: rgba(93, 169, 233, 0.16);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: "Space Grotesk", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background-image:
+          linear-gradient(rgba(45, 117, 182, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(45, 117, 182, 0.05) 1px, transparent 1px);
+        background-size: 46px 46px;
+        mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(800px circle at 15% 0%,
+            rgba(0, 229, 255, 0.08), transparent 60%),
+          radial-gradient(700px circle at 85% 100%,
+            rgba(177, 74, 237, 0.06), transparent 60%);
+      }
+      nav {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 100;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 40px;
+        backdrop-filter: blur(20px);
+        background: rgba(5, 8, 15, 0.7);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--text);
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 700;
+        font-size: 20px;
+        letter-spacing: 0.5px;
+      }
+      .nav-logo svg {
+        width: 26px;
+        height: 26px;
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2;
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+      }
+      .nav-links a {
+        text-decoration: none;
+        color: var(--dim);
+        font-size: 14px;
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+      .nav-links a:hover,
+      .nav-links a.active { color: var(--accent); }
+      .nav-cta {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        padding: 9px 22px;
+        border-radius: 7px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        text-transform: uppercase;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+        transition: 0.2s;
+      }
+      .nav-cta:hover {
+        box-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
+        transform: translateY(-1px);
+      }
+      .plan-badge {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        text-decoration: none;
+        transition: opacity 0.2s ease;
+        align-self: center;
+      }
+      .plan-badge:hover { opacity: 0.85; }
+      .plan-badge.plan-free {
+        background: rgba(223, 232, 245, 0.1);
+        color: rgba(223, 232, 245, 0.7);
+        border: 1px solid rgba(223, 232, 245, 0.2);
+      }
+      .plan-badge.plan-plus {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #001018;
+      }
+      .plan-badge.plan-max {
+        background: linear-gradient(135deg, #ff7ac6, #b48bff);
+        color: #1a0033;
+      }
+
+      .wrap {
+        position: relative;
+        z-index: 1;
+        max-width: 1300px;
+        margin: 0 auto;
+        padding: 130px 40px 80px;
+      }
+      .page-tag {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 4px;
+        background: rgba(0, 229, 255, 0.08);
+        border: 1px solid var(--border);
+        color: var(--accent);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+      .page-title {
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 42px;
+        font-weight: 700;
+        line-height: 1.15;
+        margin-bottom: 12px;
+      }
+      .grad {
+        background: linear-gradient(90deg, var(--accent), var(--crit));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .page-sub {
+        color: var(--dim);
+        font-size: 15px;
+        margin-bottom: 40px;
+        max-width: 700px;
+      }
+
+      /* Summary strip */
+      .summary-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 30px;
+      }
+      .summary-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 18px 20px;
+      }
+      .summary-card .lbl {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin-bottom: 6px;
+      }
+      .summary-card .val {
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 26px;
+        font-weight: 700;
+      }
+
+      /* Table */
+      .table-shell {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      thead {
+        background: rgba(93, 169, 233, 0.04);
+      }
+      th {
+        text-align: left;
+        padding: 14px 18px;
+        color: var(--dim);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--border);
+      }
+      td {
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(93, 169, 233, 0.06);
+        color: var(--text);
+      }
+      tbody tr:last-child td { border-bottom: none; }
+      tbody tr {
+        transition: background 0.15s;
+      }
+      tbody tr:hover {
+        background: rgba(0, 229, 255, 0.03);
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 4px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .b-manual    { background: rgba(93,169,233,0.12); color: var(--accent2); }
+      .b-scheduled { background: rgba(46,230,160,0.10); color: var(--ok); }
+      .b-success   { background: rgba(46,230,160,0.12); color: var(--ok); }
+      .b-failure   { background: rgba(255,56,96,0.12); color: var(--danger); }
+      .b-running   { background: rgba(255,140,66,0.12); color: var(--warn); }
+
+      .num {
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 600;
+      }
+      .num.zero { color: var(--dim); font-weight: 400; }
+      .num.crit { color: var(--crit); }
+      .num.high { color: var(--danger); }
+      .num.med  { color: var(--warn); }
+      .num.low  { color: var(--ok); }
+
+      .empty {
+        padding: 60px 20px;
+        text-align: center;
+        color: var(--dim);
+      }
+      .empty h3 {
+        font-family: "Chakra Petch", sans-serif;
+        color: var(--text);
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
+      .empty a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .err-msg {
+        color: var(--danger);
+        font-size: 12px;
+        font-family: "JetBrains Mono", monospace;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tier-notice {
+        margin-top: 30px;
+        padding: 16px 20px;
+        background: rgba(177, 74, 237, 0.06);
+        border: 1px solid rgba(177, 74, 237, 0.25);
+        border-radius: 8px;
+        color: var(--dim);
+        font-size: 13px;
+      }
+      .tier-notice strong {
+        color: var(--crit);
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      @media (max-width: 900px) {
+        .summary-strip { grid-template-columns: repeat(2, 1fr); }
+        .page-title { font-size: 32px; }
+        table { font-size: 12px; }
+        th, td { padding: 10px 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/" class="nav-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+        CloudPath
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        {% if current_user.is_authenticated %}
+          <a href="/connect">Connect</a>
+          <a href="/app">Scanner</a>
+          <a href="/rules">Rules</a>
+          <a href="/history" class="active">History</a>
+          {% if current_user.subscription_tier == 'max' %}
+            <a href="/api-management">API</a>
+          {% endif %}
+          <a href="/docs">Docs</a>
+          <a href="/billing" class="plan-badge plan-{{ current_user.subscription_tier }}"
+             title="Your current subscription tier. Click to manage.">
+            {{ current_user.subscription_tier|upper }}
+          </a>
+          <a href="/logout" class="nav-cta">Logout</a>
+        {% else %}
+          <a href="/login" class="nav-cta">Sign in</a>
+        {% endif %}
+      </div>
+    </nav>
+
+    <div class="wrap">
+      <div class="page-tag">Scan History</div>
+      <div class="page-title">Every scan, <span class="grad">tracked and searchable.</span></div>
+      <div class="page-sub">
+        Complete record of manual and scheduled scans, with severity counts and
+        run status. Retention depends on your subscription tier.
+      </div>
+
+      <div class="summary-strip">
+        <div class="summary-card">
+          <div class="lbl">Total scans</div>
+          <div class="val" id="stat-total">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="lbl">Successful</div>
+          <div class="val" id="stat-success" style="color: var(--ok);">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="lbl">Failed</div>
+          <div class="val" id="stat-fail" style="color: var(--danger);">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="lbl">Last run</div>
+          <div class="val" id="stat-last" style="font-size: 16px;">—</div>
+        </div>
+      </div>
+
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>Started</th>
+              <th>Trigger</th>
+              <th>Status</th>
+              <th style="text-align:right">Critical</th>
+              <th style="text-align:right">High</th>
+              <th style="text-align:right">Medium</th>
+              <th style="text-align:right">Low</th>
+              <th style="text-align:right">Total paths</th>
+              <th style="text-align:right">Detections</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody id="hist-body">
+            <tr><td colspan="10" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      {% if current_user.subscription_tier == 'free' %}
+      <div class="tier-notice">
+        <strong>FREE TIER</strong> — Scan history is limited to the last 5 runs on
+        the Free tier. <a href="/billing" style="color:var(--accent);">Upgrade to Plus</a>
+        for unlimited history retention and scheduled scans.
+      </div>
+      {% endif %}
+    </div>
+
+    <script>
+      const FREE_LIMIT = {{ 5 if current_user.subscription_tier == 'free' else 100 }};
+
+      function fmtDate(iso) {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        return d.toLocaleString(undefined, {
+          year: "numeric", month: "short", day: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        });
+      }
+
+      function fmtDuration(startIso, endIso) {
+        if (!startIso || !endIso) return "—";
+        const ms = new Date(endIso) - new Date(startIso);
+        if (isNaN(ms) || ms < 0) return "—";
+        const s = Math.round(ms / 1000);
+        if (s < 60) return `${s}s`;
+        const m = Math.floor(s / 60), rs = s % 60;
+        return `${m}m ${rs}s`;
+      }
+
+      function numCell(v, klass) {
+        if (v === null || v === undefined) return `<span class="num zero">—</span>`;
+        if (v === 0) return `<span class="num zero">0</span>`;
+        return `<span class="num ${klass}">${v}</span>`;
+      }
+
+      function renderRow(r) {
+        const trig = r.triggered_by === "scheduled"
+          ? `<span class="badge b-scheduled">SCHEDULED</span>`
+          : `<span class="badge b-manual">MANUAL</span>`;
+        let status;
+        if (r.status === "success")      status = `<span class="badge b-success">SUCCESS</span>`;
+        else if (r.status === "failure") status = `<span class="badge b-failure" title="${(r.error_message||'').replace(/"/g,'&quot;')}">FAILED</span>`;
+        else                             status = `<span class="badge b-running">RUNNING</span>`;
+
+        return `
+          <tr>
+            <td>${fmtDate(r.started_at)}</td>
+            <td>${trig}</td>
+            <td>${status}</td>
+            <td style="text-align:right">${numCell(r.critical_paths, "crit")}</td>
+            <td style="text-align:right">${numCell(r.high_paths, "high")}</td>
+            <td style="text-align:right">${numCell(r.medium_paths, "med")}</td>
+            <td style="text-align:right">${numCell(r.low_paths, "low")}</td>
+            <td style="text-align:right">${numCell(r.paths_found, "")}</td>
+            <td style="text-align:right">${numCell(r.detections_count, "")}</td>
+            <td style="color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+              ${fmtDuration(r.started_at, r.completed_at)}
+            </td>
+          </tr>
+        `;
+      }
+
+      async function loadHistory() {
+        try {
+          const resp = await fetch("/api/history");
+          const data = await resp.json();
+          if (data.status !== "ok") throw new Error(data.message || "load failed");
+          const rows = (data.history || []).slice(0, FREE_LIMIT);
+
+          const tbody = document.getElementById("hist-body");
+          if (rows.length === 0) {
+            tbody.innerHTML = `
+              <tr><td colspan="10" class="empty">
+                <h3>No scans yet</h3>
+                <div>Run your first scan from the
+                  <a href="/app">Scanner</a> to see history here.</div>
+              </td></tr>
+            `;
+            document.getElementById("stat-total").textContent   = "0";
+            document.getElementById("stat-success").textContent = "0";
+            document.getElementById("stat-fail").textContent    = "0";
+            document.getElementById("stat-last").textContent    = "—";
+            return;
+          }
+
+          tbody.innerHTML = rows.map(renderRow).join("");
+
+          const total = rows.length;
+          const success = rows.filter(r => r.status === "success").length;
+          const fail    = rows.filter(r => r.status === "failure").length;
+          const last    = rows[0]?.started_at;
+          document.getElementById("stat-total").textContent   = total;
+          document.getElementById("stat-success").textContent = success;
+          document.getElementById("stat-fail").textContent    = fail;
+          document.getElementById("stat-last").textContent    = last ? fmtDate(last) : "—";
+        } catch (e) {
+          document.getElementById("hist-body").innerHTML = `
+            <tr><td colspan="10" class="empty">
+              <h3 style="color: var(--danger);">Could not load history</h3>
+              <div>${e.message || e}</div>
+            </td></tr>
+          `;
+        }
+      }
+
+      loadHistory();
+      // Auto-refresh every 30s so running scans transition to done
+      // without a manual reload.
+      setInterval(loadHistory, 30000);
+    </script>
+  </body>
+</html>

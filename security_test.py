@@ -102,19 +102,25 @@ def path_step_keys(steps):
 # Engine execution with timing
 # ============================================================
 
-def run_engine_once(session, rules, capture_per_rule_timing=True):
+def run_engine_once(session, rules, tenant_id, capture_per_rule_timing=True):
     """Execute the full detection pipeline once and return a result bundle.
 
     Captures:
       - Wall-clock timing for each pipeline phase
       - Optional per-rule timing (capture_per_rule_timing=True)
       - The raw detection list and attack path list
+
+    tenant_id: this harness evaluates against the primary test account
+    (tenant_id=1, where ground_truth.yaml's planted misconfigurations
+    actually live). engine.py's detect_all/build_attack_paths/etc. all
+    require tenant_id since Phase 7 (multi-tenant scoping) — this script
+    pre-dates that and needs it threaded through explicitly.
     """
     timings = {}
 
     # Phase 1: cross-cloud bridge edges
     t0 = time.perf_counter()
-    link_cross_cloud_credentials(session)
+    link_cross_cloud_credentials(session, tenant_id)
     timings["bridge_ms"] = round((time.perf_counter() - t0) * 1000, 2)
 
     # Phase 2: run detection rules. Optionally measure each rule
@@ -131,7 +137,7 @@ def run_engine_once(session, rules, capture_per_rule_timing=True):
         detections = []
         for rule in rules:
             rt0 = time.perf_counter()
-            raw_matches = run_rule(session, rule)
+            raw_matches = run_rule(session, rule, tenant_id)
             rt_ms = round((time.perf_counter() - rt0) * 1000, 2)
             per_rule[rule["id"]] = rt_ms
             for match in raw_matches:
@@ -148,12 +154,12 @@ def run_engine_once(session, rules, capture_per_rule_timing=True):
         timings["detection_ms"] = round((time.perf_counter() - t0) * 1000, 2)
     else:
         t0 = time.perf_counter()
-        detections = detect_all(session, rules)
+        detections = detect_all(session, rules, tenant_id)
         timings["detection_ms"] = round((time.perf_counter() - t0) * 1000, 2)
 
     # Phase 3: chain detections into paths
     t0 = time.perf_counter()
-    paths = build_attack_paths(session, detections)
+    paths = build_attack_paths(session, detections, tenant_id)
     timings["chaining_ms"] = round((time.perf_counter() - t0) * 1000, 2)
 
     timings["total_ms"] = (
@@ -168,7 +174,7 @@ def run_engine_once(session, rules, capture_per_rule_timing=True):
     }
 
 
-def run_engine_repeatedly(n_runs):
+def run_engine_repeatedly(n_runs, tenant_id=1):
     """Execute the engine n_runs times and return aggregate timings.
 
     The detections/paths from the FIRST run are used for correctness
@@ -182,7 +188,7 @@ def run_engine_repeatedly(n_runs):
     print(f"\nRunning engine {n_runs} times for performance averaging…")
     with driver.session() as session:
         for i in range(n_runs):
-            result = run_engine_once(session, rules, capture_per_rule_timing=True)
+            result = run_engine_once(session, rules, tenant_id, capture_per_rule_timing=True)
             all_runs.append(result)
             print(f"  Run {i + 1}/{n_runs}: total={result['timings']['total_ms']}ms "
                   f"(bridge={result['timings']['bridge_ms']}, "

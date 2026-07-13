@@ -18,19 +18,49 @@ NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "changeme")
 
-# Allow override; defaults to us-east-1 where you stored the secret
-REGION = os.environ.get("AWS_REGION", "us-east-1")
+BOOTSTRAP_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
-print(f"[AWS Secret Ingest] Region: {REGION}")
 
-# 1. Fetch secret metadata from AWS (NOT the secret value)
-try:
-    client = boto3.client("secretsmanager", region_name=REGION)
-    response = client.list_secrets()
-    secrets = response.get("SecretList", [])
-    print(f"[AWS Secret Ingest] Found {len(secrets)} secret(s)")
-except Exception as e:
-    print(f"ERROR: could not list secrets: {e}")
+def _list_enabled_regions() -> list:
+    """Ask AWS which regions are enabled for this account instead of
+    assuming one. Falls back to the bootstrap region alone if the
+    account can't call ec2:DescribeRegions for some reason."""
+    try:
+        ec2 = boto3.client("ec2", region_name=BOOTSTRAP_REGION)
+        resp = ec2.describe_regions(AllRegions=False)
+        return sorted(r["RegionName"] for r in resp["Regions"])
+    except Exception as e:
+        print(f"WARNING: could not list regions ({e}); falling back to {BOOTSTRAP_REGION} only")
+        return [BOOTSTRAP_REGION]
+
+
+# 1. Fetch secret metadata from AWS (NOT the secret value), across every
+#    enabled region. Secrets Manager is region-scoped — there's no
+#    single "all regions" API call — so each region needs its own
+#    list_secrets() call.
+regions = _list_enabled_regions()
+print(f"[AWS Secret Ingest] Scanning {len(regions)} region(s): {', '.join(regions)}")
+
+secrets = []  # list of (region, secret_dict)
+regions_failed = []
+for region in regions:
+    try:
+        client = boto3.client("secretsmanager", region_name=region)
+        response = client.list_secrets()
+        found = response.get("SecretList", [])
+        if found:
+            print(f"[AWS Secret Ingest] {region}: found {len(found)} secret(s)")
+        secrets.extend((region, s) for s in found)
+    except Exception as e:
+        print(f"  ({region}: could not list secrets — {str(e)[:80]})")
+        regions_failed.append(region)
+
+print(f"[AWS Secret Ingest] Found {len(secrets)} secret(s) total across all regions")
+
+
+if regions and len(regions_failed) == len(regions):
+    print(f"ERROR: all {len(regions)} region(s) failed — could not verify "
+          f"whether any secrets exist. Not treating this as 'zero secrets found'.")
     sys.exit(1)
 
 # 2. Ingest into Neo4j using Cartography-compatible schema
@@ -41,7 +71,7 @@ with driver.session() as session:
     sts = boto3.client("sts")
     account_id = sts.get_caller_identity()["Account"]
 
-    for s in secrets:
+    for region, s in secrets:
         arn = s["ARN"]
         name = s["Name"]
         description = s.get("Description", "")
@@ -63,9 +93,9 @@ with driver.session() as session:
             """,
             arn=arn, name=name, desc=description,
             kms=kms_key_id, rot=rotation_enabled,
-            region=REGION, aid=account_id,
+            region=region, aid=account_id,
         )
-        print(f"  Ingested: {name} ({arn})")
+        print(f"  Ingested: {name} ({arn}) [{region}]")
 
     # 3. Optional sanity check: confirm node count
     result = session.run(

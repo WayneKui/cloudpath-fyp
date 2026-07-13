@@ -20,18 +20,6 @@ Usage:
       # ctx.aws_present, ctx.gcp_present tell which clouds are usable
       # ctx.gcp_project_id is the project id discovered from the SA JSON
       subprocess.run(cmd, env=ctx.env, ...)
-
-Honest scope notes:
-  - On Windows the secure-delete (overwrite-then-unlink) is best-effort.
-    NTFS journaling and disk caches can preserve old contents. Acceptable
-    for FYP scope; documented as a known limitation.
-  - The context manager copies os.environ as the base, then layers the
-    per-user creds on top. This means Flask's own env (PATH, PYTHONHOME,
-    etc.) still works for subprocesses — without it, Cartography wouldn't
-    be able to find its own dependencies.
-  - We DO NOT modify os.environ globally. The per-user creds only live
-    in the env dict passed to subprocess.run(), so concurrent scans for
-    different users cannot leak credentials to each other.
 """
 import os
 import sys
@@ -172,6 +160,10 @@ def _load_gcp_into_env(env: dict, ctx: ScanCredentialContext, cred_row: dict) ->
         return
 
     env["GOOGLE_APPLICATION_CREDENTIALS"] = path
+    # gcp_ingest_full.py and other GCP ingestion scripts expect
+    # GCP_PROJECT_ID as env var. Set it here so subprocess picks it up.
+    if project_id:
+        env["GCP_PROJECT_ID"] = project_id
     ctx._temp_files.append(path)
     ctx.gcp_present = True
     ctx.gcp_project_id = project_id
@@ -192,10 +184,16 @@ def scan_credentials_for_user(user_id: int):
     # Start from the parent process env so subprocesses inherit PATH,
     # PYTHONHOME, NEO4J_PASSWORD, etc.
     ctx.env = os.environ.copy()
-    # CRITICAL: strip any inherited cloud creds. Phase 5's whole point
-    # is that creds come from the database, not the Flask process env.
-    # If we let env vars leak through, debugging multi-tenant bugs
-    # becomes impossible.
+    ctx.env["PYTHONIOENCODING"] = "utf-8"
+    ctx.env["PYTHONUTF8"] = "1"
+    ctx.env["NO_COLOR"] = "1"
+    ctx.env["TERM"] = "dumb"
+    ctx.env["PYTHONUNBUFFERED"] = "1"
+    ctx.env["FORCE_COLOR"] = "0"
+    ctx.env["RICH_FORCE_TERMINAL"] = "false"
+    ctx.env["COLUMNS"] = "200"
+    ctx.env["LINES"] = "50"
+
     for var in (
         "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
         "AWS_PROFILE", "GOOGLE_APPLICATION_CREDENTIALS",

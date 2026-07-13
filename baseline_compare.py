@@ -7,10 +7,6 @@ What this script does:
     - Cartography (cloud asset inventory tool)
   on the SAME planted misconfigurations used in Layer 1.
 
-The honest research question Layer 2 answers:
-  "What does CloudPath surface that running Prowler + Cartography
-   independently would not surface?"
-
 Three sub-questions:
   1. COVERAGE:    Do the baselines detect each planted misconfiguration?
                   (Read Prowler JSON output; check Cartography Neo4j state.)
@@ -18,21 +14,6 @@ Three sub-questions:
                   (Spoiler: no — they produce findings/inventory, not chains.)
   3. CROSS-CLOUD: Do the baselines correlate across cloud providers?
                   (Spoiler: no — they scan AWS and GCP separately.)
-
-Output:
-  - layer2_results.json     machine-readable detail
-  - layer2_results.csv      flat metrics for charts
-  - layer2_summary.txt      human-readable report
-
-Notes on honesty:
-  - "Cartography catches it" means: the resource is ingested into Neo4j
-    such that an analyst querying directly could spot the issue. It does
-    NOT mean Cartography raises an alert — Cartography never raises alerts.
-  - "Prowler catches it" means: a Prowler check with FAIL status fired
-    on the resource UID in the actual Prowler output files. Verified by
-    parsing prowler-output/*.ocsf.json.
-  - Cross-cloud correlation: by construction, neither baseline performs
-    this. Reported here as a zero-by-design result, not a measured gap.
 
 Usage:
   $env:NEO4J_PASSWORD = "changeme"
@@ -99,10 +80,6 @@ def load_prowler_findings(directory="prowler-output"):
 
 def load_cartography_state():
     """Query Neo4j and return the set of labels present (label -> count).
-
-    'Cartography state' here means whatever is currently in Neo4j — which
-    includes data from Cartography proper, your custom ingestors, and
-    aws_secret_ingest.py. We don't try to attribute by ingestion source.
     """
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
     label_counts = {}
@@ -128,24 +105,6 @@ def load_cartography_state():
 def check_prowler_coverage(planted, prowler_findings):
     """For one planted misconfiguration, find which Prowler checks fired
     against the same OR a related target resource.
-
-    A finding matches a planted misconfig if:
-      - Its check_id is listed in the misconfig's prowler_check_ids, AND
-      - Its resource_uid or resource_name matches:
-          - the misconfig's node_id (direct match), OR
-          - any UID/name listed in prowler_related_uids (Path A match)
-
-    The "related UIDs" extension handles the case where Prowler anchors
-    its check on a different (but functionally connected) resource than
-    CloudPath does. For example: CloudPath anchors T1190 detection on the
-    GCP VM (fw-misconfiguration); Prowler raises the same compliance
-    issue on the attached firewall (fw-misconfig-open-ssh). Without
-    related-UID matching, Prowler is unfairly scored as "missed" when
-    it actually caught the issue on the adjacent resource.
-
-    Returns a dict with the match details, including a `match_kind`
-    field that distinguishes direct vs related-resource matches so the
-    report can be transparent about which kind of match each row used.
     """
     expected_checks = planted.get("prowler_check_ids", []) or []
     if not expected_checks:
@@ -216,13 +175,6 @@ def check_prowler_coverage(planted, prowler_findings):
 def check_cartography_coverage(planted, label_counts):
     """For one planted misconfiguration, check whether Cartography ingested
     the required node types.
-
-    A misconfig is 'ingested by Cartography' if EVERY label in its
-    cartography_required_labels list exists in Neo4j with count > 0.
-
-    This is a structural test — it confirms the data is in the graph, not
-    that any tool flagged it as a problem. Cartography is an inventory
-    tool; raising alerts is not its job.
     """
     required = planted.get("cartography_required_labels", []) or []
     if not required:
@@ -246,10 +198,6 @@ def check_cartography_coverage(planted, label_counts):
 
 def evaluate_baselines(ground_truth, prowler_findings, label_counts):
     """Run baseline checks for every planted misconfiguration.
-
-    Returns a list of per-misconfig records, plus an aggregate summary
-    of how many were caught by each baseline (and by CloudPath, taken
-    from the ground-truth file for cross-reference).
     """
     per_misconfig = []
     prowler_caught_count = 0
@@ -302,10 +250,6 @@ def evaluate_baselines(ground_truth, prowler_findings, label_counts):
 
 def evaluate_capabilities(ground_truth):
     """Compare what each tool CAN and CANNOT do, by tool design.
-
-    These are structural claims about the tools, not measured per-run.
-    Documented here so the report can quote them with the data file as
-    evidence.
     """
     n_paths = len(ground_truth["expected_attack_paths"])
     n_cross_cloud = sum(1 for p in ground_truth["expected_attack_paths"]

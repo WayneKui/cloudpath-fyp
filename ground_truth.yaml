@@ -165,17 +165,23 @@ planted_misconfigurations:
       "roles/editor" role. Compromise of the VM yields broad write
       access across the GCP project, including bucket and IAM control.
     mitre_reference: https://attack.mitre.org/techniques/T1078/004/
-    # No Prowler check fires on this specific binding. Prowler does have
-    # general SA-permissions checks but none of them flag THIS resource
-    # in our output. CloudPath catches it via the YAML rule pattern
-    # matching SAs with roles/editor|owner|*Admin attached.
-    prowler_check_ids: []   # verified empty in real output
+    # Prowler's iam_sa_no_administrative_privileges check DOES fire FAIL
+    # on the service account bound to this VM (confirmed via Neo4j:
+    # fw-misconfiguration -[:USES_SERVICE_ACCOUNT]-> this SA) — but on
+    # the SA resource, not the VM CloudPath anchors on. Listed as a
+    # related-resource match so Prowler gets fair credit; CloudPath's
+    # contribution here is correlating the SA's privilege back to the
+    # VM as an attack-path entry point, not the raw detection.
+    prowler_check_ids:
+      - iam_sa_no_administrative_privileges
+    prowler_related_uids:
+      - overpriv-sa-misconfiguration@cloudpath-fyp.iam.gserviceaccount.com
     cartography_required_labels:
       - GCPInstance
       - GCPServiceAccount
       - GCPRole
     baseline_caught_by:
-      prowler: false
+      prowler: true   # Caught via the attached service account (Path A matching)
       cartography: true
 
   - id: gcp_public_bucket
@@ -300,12 +306,7 @@ evaluation:
   # Outside the range = "score outside expected range" warning.
   score_match_tolerance: 0.0  # strict range membership
 
-  # If the engine returns MORE paths than the ground truth lists,
-  # how do we treat them?
-  #   "tp_only"     = ignore extras (assume the engine is being more
-  #                   thorough than the ground truth)
-  #   "fp_strict"   = every extra detection counts as a False Positive
-  # For an FYP evaluation, fp_strict is more honest.
+
   extra_paths_policy: fp_strict
 
   # Output paths for test results

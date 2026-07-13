@@ -47,6 +47,9 @@
         background-size: 46px 46px;
         mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
       }
+      /* Ambient gradient glow — adds depth so the page doesn't look flat.
+         Layers on top of the grid pattern; pointer-events: none so it
+         doesn't block clicks. */
       body::after {
         content: "";
         position: fixed;
@@ -54,9 +57,38 @@
         z-index: 0;
         pointer-events: none;
         background:
-          radial-gradient(700px circle at 10% 20%, rgba(0, 229, 255, 0.06), transparent 60%),
-          radial-gradient(800px circle at 90% 90%, rgba(177, 74, 237, 0.06), transparent 60%);
+          radial-gradient(800px circle at 15% 0%,
+            rgba(0, 229, 255, 0.08), transparent 60%),
+          radial-gradient(700px circle at 85% 100%,
+            rgba(177, 74, 237, 0.06), transparent 60%),
+          radial-gradient(1200px circle at 50% 50%,
+            rgba(93, 169, 233, 0.04), transparent 70%);
+        animation: gradient-drift 32s ease-in-out infinite;
       }
+      @keyframes gradient-drift {
+        0%, 100% { transform: translate(0, 0); }
+        33%      { transform: translate(40px, -30px); }
+        66%      { transform: translate(-30px, 40px); }
+      }
+      #cursor-glow {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 500px;
+        height: 500px;
+        margin-left: -250px;
+        margin-top: -250px;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0;
+        background: radial-gradient(circle,
+          rgba(0, 229, 255, 0.10) 0%,
+          rgba(0, 229, 255, 0.04) 35%,
+          transparent 60%);
+        transition: opacity 0.4s ease;
+        will-change: transform;
+      }
+      body:hover #cursor-glow { opacity: 1; }
       nav {
         position: sticky;
         top: 0;
@@ -119,6 +151,34 @@
         box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
         transition: 0.2s;
       }
+
+      /* Plan badge in nav. Duplicated across templates for now —
+         refactor into shared CSS later if it becomes painful. */
+      .plan-badge {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        text-decoration: none;
+        transition: opacity 0.2s ease;
+        align-self: center;
+      }
+      .plan-badge:hover { opacity: 0.85; }
+      .plan-badge.plan-free {
+        background: rgba(223, 232, 245, 0.1);
+        color: rgba(223, 232, 245, 0.7);
+        border: 1px solid rgba(223, 232, 245, 0.2);
+      }
+      .plan-badge.plan-plus {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #001018;
+      }
+      .plan-badge.plan-max {
+        background: linear-gradient(135deg, #ff7ac6, #b48bff);
+        color: #1a0033;
+      }
+
       .wrap {
         position: relative;
         z-index: 2;
@@ -833,6 +893,7 @@
     </style>
   </head>
   <body>
+    <div id="cursor-glow"></div>
     <nav>
       <a href="/" class="nav-logo"
         ><svg viewBox="0 0 24 24">
@@ -847,7 +908,15 @@
           <a href="/connect">Connect</a>
           <a href="/app">Scanner</a>
           <a href="/rules">Rules</a>
+          <a href="/history">History</a>
+          {% if current_user.subscription_tier == 'max' %}
+            <a href="/api-management">API</a>
+          {% endif %}
           <a href="/docs" class="active">Docs</a>
+          <a href="/billing" class="plan-badge plan-{{ current_user.subscription_tier }}"
+             title="Your current subscription tier. Click to manage.">
+            {{ current_user.subscription_tier|upper }}
+          </a>
           <a href="/logout" class="nav-cta">Logout</a>
         {% else %}
           <a href="/login" class="nav-cta">Sign in</a>
@@ -1346,6 +1415,22 @@ RETURN DISTINCT b.name AS node_id,
         { threshold: 0.1 },
       );
       document.querySelectorAll(".reveal").forEach((el) => obs.observe(el));
+    </script>
+    <script>
+      (function(){
+        const g = document.getElementById('cursor-glow');
+        if (!g) return;
+        let tx = window.innerWidth / 2, ty = window.innerHeight / 2;
+        let cx = tx, cy = ty;
+        document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+        function loop(){
+          cx += (tx - cx) * 0.12;
+          cy += (ty - cy) * 0.12;
+          g.style.transform = 'translate(' + cx + 'px, ' + cy + 'px)';
+          requestAnimationFrame(loop);
+        }
+        loop();
+      })();
     </script>
   </body>
 </html>

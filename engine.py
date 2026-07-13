@@ -4,6 +4,8 @@ import glob
 import yaml
 from neo4j import GraphDatabase
 
+import db
+
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "changeme")
@@ -29,12 +31,6 @@ NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "changeme")
 #
 # The injector runs once when load_rules() reads each YAML. The transformed
 # Cypher is what gets executed; the original YAML stays clean and readable.
-#
-# Honest viva framing:
-#   "Tenant scoping is enforced by the rule loader, not the rule author.
-#   Every YAML rule is automatically wrapped with a tenant filter at load
-#   time. This makes adding new rules safer: the author writes a clean
-#   detection query, the framework guarantees tenant isolation."
 # ---------------------------------------------------------------------------
 
 # Pattern A: `(var:Label)` or `(:Label)` with NO trailing brace block.
@@ -67,16 +63,8 @@ _LABELED_WITH_PROPS = re.compile(
 
 def inject_tenant_filter(cypher: str) -> str:
     """Add `tenant_id: $tid` to every labeled node pattern in a Cypher query.
-
-    Two passes:
-      1. Nodes WITH property braces — insert at start of existing braces.
-      2. Nodes WITHOUT property braces — append fresh braces.
-
-    Order matters: do (1) first so (2) doesn't double-tag nodes that
-    already had braces handled.
     """
-    if not cypher or "$tid" in cypher:
-        # Already injected or empty — idempotent skip.
+    if not cypher:
         return cypher
 
     # Pass 1: nodes with existing property braces — insert tenant_id at start
@@ -91,8 +79,6 @@ def inject_tenant_filter(cypher: str) -> str:
     # already ends at `)`, so we just need to peek the next char.
     def _no_props(m):
         var, label = m.group(1), m.group(2)
-        # Peek: if the next character in the original is `{`, this node
-        # was already handled in pass 1 — leave it alone.
         end = m.end()
         if end < len(cypher) and cypher[end] == "{":
             return m.group(0)  # unchanged
@@ -100,7 +86,6 @@ def inject_tenant_filter(cypher: str) -> str:
     cypher = _LABELED_NO_PROPS.sub(_no_props, cypher)
 
     return cypher
-
 
 # ---------------------------------------------------------------------------
 # Rule loading: supports BOTH old (single-cloud) and new (unified) YAML formats
@@ -222,15 +207,178 @@ def load_rules(rules_dir="rules"):
     return rules
 
 
+# ---------------------------------------------------------------------------
+# Custom (per-tenant) rules
+# ---------------------------------------------------------------------------
+# Users can author their own Cypher detection rules from /rules. Unlike the
+# 4 built-in YAML rules — written by us, code-reviewed — custom rule Cypher
+# is arbitrary text typed by a customer, run against a Neo4j database that
+# holds EVERY tenant's data. That needs two independent locks, not one:
+#
+#   1. validate_custom_rule_cypher() below — a keyword blocklist run at
+#      SAVE time, so a user gets an immediate, friendly error instead of
+#      a silent failure or a successful save of something dangerous.
+#   2. run_rule() executes ALL rules (built-in and custom) inside a Neo4j
+#      READ transaction (session.execute_read) — the database itself
+#      refuses to execute a write, even if something slipped past (1).
+#
+# Tenant isolation for custom rules reuses inject_tenant_filter(), the
+# exact same regex-based rewrite the 4 built-in rules already depend on
+# — so a custom rule's MATCH clauses are scoped to the author's own data
+# without the author having to remember to type a tenant filter.
+
+_CYPHER_BLOCKED_KEYWORDS = (
+    "CREATE", "MERGE", "SET", "DELETE", "DETACH", "REMOVE", "DROP",
+    "CALL", "FOREACH", "LOAD CSV",
+)
+
+_APOC_CALL = re.compile(r"\bapoc\.[\w.]+", re.IGNORECASE)
+_CYPHER_MAX_LEN = 4000
+
+
+def validate_custom_rule_cypher(cypher: str) -> str | None:
+    """Return None if the Cypher is acceptable for a custom rule,
+    otherwise a human-readable reason it was rejected.
+
+    This is a first line of defense (clear error message at save time),
+    not the only one — run_rule() also forces every rule through a
+    read-only Neo4j transaction regardless of what passes here.
+    """
+    if not cypher or not cypher.strip():
+        return "Cypher query is required."
+    if len(cypher) > _CYPHER_MAX_LEN:
+        return f"Cypher query is too long (max {_CYPHER_MAX_LEN} characters)."
+    if not re.search(r"\bMATCH\b", cypher, re.IGNORECASE):
+        return "Cypher query must contain a MATCH clause."
+    if not re.search(r"\bRETURN\b", cypher, re.IGNORECASE):
+        return "Cypher query must contain a RETURN clause (return at least node_id, node_type)."
+    apoc_match = _APOC_CALL.search(cypher)
+    if apoc_match:
+        return (
+            f"The procedure '{apoc_match.group()}' is not allowed in a "
+            f"custom rule. APOC procedures can read local files, make "
+            f"network calls, or modify the graph outside normal Cypher — "
+            f"custom rules may only use MATCH ... RETURN."
+        )
+    for kw in _CYPHER_BLOCKED_KEYWORDS:
+        if re.search(r"\b" + re.escape(kw) + r"\b", cypher, re.IGNORECASE):
+            return (
+                f"'{kw}' is not allowed in a custom rule. Custom rules can "
+                f"only read and return data (MATCH ... RETURN), not modify "
+                f"the graph or call external procedures."
+            )
+    # SECURITY: inject_tenant_filter() only scopes node patterns that
+    # carry an explicit label, e.g. (b:S3Bucket) — it can't safely scope
+    # an unlabeled pattern like (n) since it doesn't know what property
+    # to filter on. The 4 built-in rules are all written with labels (a
+    # code-review guarantee); a custom rule has no such guarantee, so a
+    # query like "MATCH (n) RETURN n.id AS node_id, labels(n)[0] AS
+    # node_type" would run completely unscoped — reading every tenant's
+    # data. Refuse to save anything that doesn't actually end up scoped.
+    if "tenant_id: $tid" not in inject_tenant_filter(cypher):
+        return (
+            "Every MATCH pattern must use a specific node label, e.g. "
+            "MATCH (b:S3Bucket) ... — not an unlabeled MATCH (n). This is "
+            "required so the rule can be automatically scoped to your own "
+            "account's data."
+        )
+    return None
+
+
+def load_custom_rules_for_tenant(tenant_id: int) -> list[dict]:
+    """Load one tenant's saved custom rules from Postgres, in the same
+    shape load_rules() produces, so detect_all() can't tell the
+    difference between a built-in and a custom rule.
+
+    Cypher is passed through inject_tenant_filter() exactly like the
+    YAML rules — the author never has to type a tenant filter, and it
+    can never be omitted by mistake.
+
+    Defense in depth: validate_custom_rule_cypher() already refuses to
+    SAVE a rule that inject_tenant_filter() can't scope, but this loads
+    straight from the DB, not through that gate — a row saved before
+    this check existed, or one edited directly in Postgres, could still
+    be unscoped. Skip (don't run) any rule where injection didn't
+    actually add a tenant filter, rather than trusting the save-time
+    check alone for something this security-sensitive.
+    """
+    rows = db.list_custom_rules_sync(tenant_id)
+    rules = []
+    for row in rows:
+        injected = inject_tenant_filter(row["cypher"])
+        if "tenant_id: $tid" not in injected:
+            print(f"[engine] WARNING: custom rule {row['rule_key']!r} "
+                  f"(id={row['id']}, user={tenant_id}) has no scopable "
+                  f"labeled node pattern — skipping to avoid an unscoped "
+                  f"cross-tenant query.", flush=True)
+            continue
+        rules.append({
+            "id": row["rule_key"],
+            "mitre_name": row["mitre_name"],
+            "tactic": row["tactic"],
+            "severity": row["severity"],
+            "description": row.get("description") or "",
+            "cloud": row["cloud"],
+            "cypher": injected,
+            "_file": f"custom:{row['id']}",
+            "_format": "custom",
+            "_source": "custom",
+            "_db_id": row["id"],
+        })
+    return rules
+
+
+def load_builtin_rules_summary(rules_dir="rules"):
+    """One display row per built-in rule FILE (not per detection).
+
+    load_rules() flattens a unified multi-cloud rule (e.g. T1078, which
+    has both an aws and a gcp detection) into 2 separate entries — that's
+    the right shape for detect_all(), but wrong for a human-facing rule
+    list, where "T1078" should appear once, not twice. This walks the
+    YAML files directly instead of going through load_rules(), so it
+    can't drift out of sync with what's actually in rules_dir the way a
+    hand-maintained list in a template would.
+    """
+    summary = []
+    for path in glob.glob(os.path.join(rules_dir, "*.yaml")):
+        with open(path, encoding="utf-8") as f:
+            raw = yaml.safe_load(f)
+            if not raw:
+                continue
+        if "detections" in raw and isinstance(raw["detections"], list):
+            clouds = sorted({d.get("cloud", "unknown") for d in raw["detections"]})
+        else:
+            clouds = [raw.get("cloud", "unknown")]
+        summary.append({
+            "id": raw["id"],
+            "mitre_name": raw["mitre_name"],
+            "tactic": raw["tactic"],
+            "severity": raw.get("severity", "medium"),
+            "description": (raw.get("description") or "").strip(),
+            "cloud": "+".join(clouds),
+        })
+    summary.sort(key=lambda r: r["id"])
+    return summary
+
+
 def run_rule(session, rule, tenant_id):
     """Execute a rule's (auto-injected) Cypher with the running tenant's id.
 
     The cypher has already been transformed by inject_tenant_filter at
     load time, so it expects $tid as a parameter on every labeled node.
+
+    Runs inside a READ transaction (session.execute_read), not a plain
+    session.run(). This matters once custom (user-authored) rules exist
+    alongside the built-in ones: even if validate_custom_rule_cypher()
+    or inject_tenant_filter() ever missed something, Neo4j itself
+    refuses to execute a write inside a read transaction — a second,
+    independent lock, not just a keyword blocklist.
     """
-    try:
-        result = session.run(rule["cypher"], tid=tenant_id)
+    def _work(tx):
+        result = tx.run(rule["cypher"], tid=tenant_id)
         return [record.data() for record in result]
+    try:
+        return session.execute_read(_work)
     except Exception as e:
         print(f"  ERROR in rule {rule['id']} ({rule['cloud']}): {e}")
         return []
@@ -317,8 +465,6 @@ def link_cross_cloud_credentials(session, tenant_id):
     carry tenant_id (relationships in our schema don't have tenant_id),
     but because both endpoints are tenant-scoped, querying through them
     from a tenant-filtered node naturally stays within that tenant.
-
-    See the original docstring (pre-Phase 7) for the heuristic details.
     """
     # Clean up any stale bridge edges from previous runs FOR THIS TENANT
     # before re-linking. We restrict the cleanup to this tenant's secrets
@@ -811,7 +957,7 @@ def get_attack_paths_json(tenant_id):
     to this tenant, so the dashboard naturally shows only the calling
     user's data.
     """
-    rules = load_rules()
+    rules = load_rules() + load_custom_rules_for_tenant(tenant_id)
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
     with driver.session() as session:
@@ -865,7 +1011,7 @@ def main():
                 sys.exit(1)
     print(f"Running engine for tenant_id = {tenant_id}")
 
-    rules = load_rules()
+    rules = load_rules() + load_custom_rules_for_tenant(tenant_id)
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
     with driver.session() as session:

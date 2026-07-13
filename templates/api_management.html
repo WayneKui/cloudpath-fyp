@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudPath — API &amp; Integrations</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #05080f;
+        --bg2: #0a0f1c;
+        --accent: #00e5ff;
+        --accent2: #5da9e9;
+        --crit: #b14aed;
+        --danger: #ff3860;
+        --warn: #ff8c42;
+        --ok: #2ee6a0;
+        --text: #dfe8f5;
+        --dim: #6b7d96;
+        --border: rgba(93, 169, 233, 0.16);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: "Space Grotesk", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed; inset: 0; z-index: 0;
+        background-image:
+          linear-gradient(rgba(45, 117, 182, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(45, 117, 182, 0.05) 1px, transparent 1px);
+        background-size: 46px 46px;
+        mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 40%, transparent 100%);
+      }
+      body::after {
+        content: "";
+        position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        background:
+          radial-gradient(800px circle at 15% 0%, rgba(0, 229, 255, 0.08), transparent 60%),
+          radial-gradient(700px circle at 85% 100%, rgba(177, 74, 237, 0.06), transparent 60%);
+      }
+      nav {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 18px 40px;
+        backdrop-filter: blur(20px);
+        background: rgba(5, 8, 15, 0.7);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-logo {
+        display: flex; align-items: center; gap: 10px;
+        text-decoration: none; color: var(--text);
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 700; font-size: 20px; letter-spacing: 0.5px;
+      }
+      .nav-logo svg {
+        width: 26px; height: 26px;
+        fill: none; stroke: var(--accent); stroke-width: 2;
+      }
+      .nav-links {
+        display: flex; align-items: center; gap: 28px;
+      }
+      .nav-links a {
+        text-decoration: none; color: var(--dim);
+        font-size: 14px; font-weight: 500;
+        transition: color 0.2s;
+      }
+      .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+      .nav-cta {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #04121a;
+        padding: 9px 22px;
+        border-radius: 7px;
+        font-family: "Chakra Petch";
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 1px;
+        text-decoration: none;
+        text-transform: uppercase;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+        transition: 0.2s;
+      }
+      .nav-cta:hover {
+        box-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
+        transform: translateY(-1px);
+      }
+      .plan-badge {
+        font-size: 11px; font-weight: 700; letter-spacing: 1px;
+        padding: 4px 10px; border-radius: 999px;
+        text-decoration: none; transition: opacity 0.2s ease;
+        align-self: center;
+      }
+      .plan-badge:hover { opacity: 0.85; }
+      .plan-badge.plan-free {
+        background: rgba(223, 232, 245, 0.1);
+        color: rgba(223, 232, 245, 0.7);
+        border: 1px solid rgba(223, 232, 245, 0.2);
+      }
+      .plan-badge.plan-plus {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #001018;
+      }
+      .plan-badge.plan-max {
+        background: linear-gradient(135deg, #ff7ac6, #b48bff);
+        color: #1a0033;
+      }
+
+      .wrap {
+        position: relative; z-index: 1;
+        max-width: 1200px; margin: 0 auto;
+        padding: 130px 40px 80px;
+      }
+      .page-tag {
+        display: inline-block;
+        padding: 6px 14px; border-radius: 4px;
+        background: rgba(0, 229, 255, 0.08);
+        border: 1px solid var(--border);
+        color: var(--accent);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px; letter-spacing: 1px;
+        text-transform: uppercase; margin-bottom: 20px;
+      }
+      .page-title {
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 42px; font-weight: 700;
+        line-height: 1.15; margin-bottom: 12px;
+      }
+      .grad {
+        background: linear-gradient(90deg, var(--accent), var(--crit));
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .page-sub {
+        color: var(--dim); font-size: 15px;
+        margin-bottom: 40px; max-width: 700px;
+      }
+
+      /* Upgrade prompt for non-Max users */
+      .upgrade-card {
+        background: var(--bg2);
+        border: 1px solid rgba(177, 74, 237, 0.35);
+        border-radius: 12px;
+        padding: 50px 40px;
+        text-align: center;
+      }
+      .upgrade-card h2 {
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 28px; margin-bottom: 12px;
+      }
+      .upgrade-card p {
+        color: var(--dim); font-size: 15px;
+        max-width: 500px; margin: 0 auto 30px;
+      }
+      .upgrade-card a {
+        display: inline-block;
+        padding: 12px 28px;
+        background: linear-gradient(135deg, #ff7ac6, #b48bff);
+        color: #1a0033; text-decoration: none;
+        font-weight: 700; border-radius: 8px;
+        letter-spacing: 0.5px;
+      }
+
+      /* Tabs */
+      .tabs {
+        display: flex; gap: 4px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 30px;
+      }
+      .tab {
+        padding: 12px 22px;
+        color: var(--dim);
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 14px; font-weight: 600;
+        letter-spacing: 0.5px;
+        border: none; background: transparent;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.15s;
+      }
+      .tab:hover { color: var(--text); }
+      .tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+      .tab-panel { display: none; }
+      .tab-panel.active { display: block; }
+
+      /* Cards */
+      .card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 24px;
+        margin-bottom: 20px;
+      }
+      .card h3 {
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 18px; margin-bottom: 6px;
+      }
+      .card .card-sub {
+        color: var(--dim); font-size: 13px;
+        margin-bottom: 16px;
+      }
+
+      /* Form controls */
+      .form-row {
+        display: flex; gap: 10px; align-items: stretch;
+        margin-bottom: 10px;
+      }
+      .form-row input[type="text"],
+      .form-row input[type="url"] {
+        flex: 1;
+        background: rgba(0,0,0,0.35);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        padding: 10px 14px;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 14px;
+      }
+      .form-row input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      button.btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: rgba(0, 229, 255, 0.08);
+        color: var(--accent);
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 600; font-size: 13px;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      button.btn:hover {
+        background: rgba(0, 229, 255, 0.15);
+        border-color: var(--accent);
+      }
+      button.btn.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #001018; border-color: transparent;
+      }
+      button.btn.danger {
+        background: transparent;
+        color: var(--danger);
+        border-color: rgba(255,56,96,0.35);
+      }
+      button.btn.danger:hover {
+        background: rgba(255,56,96,0.1);
+      }
+      button.btn:disabled {
+        opacity: 0.5; cursor: not-allowed;
+      }
+
+      /* Item lists (keys, webhooks) */
+      .item-list {
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .item {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 14px;
+        padding: 14px 18px;
+        background: rgba(0,0,0,0.2);
+        border: 1px solid rgba(93, 169, 233, 0.08);
+        border-radius: 8px;
+      }
+      .item.revoked { opacity: 0.5; }
+      .item-main { flex: 1; min-width: 0; }
+      .item-name {
+        font-weight: 600; font-size: 14px;
+        margin-bottom: 3px;
+      }
+      .item-meta {
+        color: var(--dim); font-size: 12px;
+        font-family: "JetBrains Mono", monospace;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .item-badges {
+        display: flex; gap: 6px; margin-top: 4px;
+      }
+      .mini-badge {
+        display: inline-block;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px; font-weight: 700;
+        padding: 2px 8px; border-radius: 999px;
+        letter-spacing: 0.5px;
+      }
+      .mini-badge.event {
+        background: rgba(0,229,255,0.1);
+        color: var(--accent);
+      }
+      .mini-badge.status-active {
+        background: rgba(46,230,160,0.12);
+        color: var(--ok);
+      }
+      .mini-badge.status-revoked,
+      .mini-badge.status-inactive {
+        background: rgba(255,56,96,0.12);
+        color: var(--danger);
+      }
+
+      .empty-state {
+        padding: 30px; text-align: center;
+        color: var(--dim); font-size: 13px;
+      }
+
+      /* Reveal-once modal */
+      .modal-backdrop {
+        display: none;
+        position: fixed; inset: 0; z-index: 200;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(4px);
+        align-items: center; justify-content: center;
+        padding: 20px;
+      }
+      .modal-backdrop.open { display: flex; }
+      .modal {
+        background: var(--bg2);
+        border: 1px solid rgba(46,230,160,0.35);
+        border-radius: 12px;
+        padding: 30px;
+        max-width: 560px;
+        width: 100%;
+      }
+      .modal h3 {
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 20px; margin-bottom: 8px;
+      }
+      .modal p { color: var(--dim); font-size: 13px; margin-bottom: 16px; }
+      .modal .key-display {
+        background: rgba(0,0,0,0.5);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        color: var(--ok);
+        word-break: break-all;
+        margin-bottom: 20px;
+      }
+      .modal .warning {
+        color: var(--warn);
+        font-size: 12px;
+        font-family: "JetBrains Mono", monospace;
+        margin-bottom: 20px;
+      }
+      .modal .actions {
+        display: flex; gap: 10px; justify-content: flex-end;
+      }
+
+      /* Docs tab */
+      .doc-block {
+        background: rgba(0,0,0,0.25);
+        border: 1px solid rgba(93,169,233,0.08);
+        border-radius: 8px;
+        padding: 18px;
+        margin-bottom: 14px;
+      }
+      .doc-block code {
+        background: rgba(0,0,0,0.5);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .doc-block pre {
+        background: rgba(0,0,0,0.5);
+        border-radius: 6px;
+        padding: 14px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        color: var(--text);
+        overflow-x: auto;
+        margin-top: 10px;
+        line-height: 1.5;
+      }
+      .doc-block .method {
+        display: inline-block;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px; font-weight: 700;
+        padding: 2px 10px; border-radius: 4px;
+        margin-right: 10px;
+      }
+      .method.get  { background: rgba(46,230,160,0.15); color: var(--ok); }
+      .method.post { background: rgba(255,140,66,0.15); color: var(--warn); }
+      .method.del  { background: rgba(255,56,96,0.15); color: var(--danger); }
+
+      .events-checkboxes {
+        display: flex; gap: 16px; margin: 10px 0;
+      }
+      .events-checkboxes label {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 13px; color: var(--text);
+        cursor: pointer;
+      }
+
+      .export-row {
+        display: flex; gap: 12px; margin-top: 12px;
+      }
+      .export-row a {
+        flex: 1;
+        text-align: center;
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--text);
+        font-family: "Chakra Petch", sans-serif;
+        transition: all 0.15s;
+      }
+      .export-row a:hover {
+        border-color: var(--accent);
+        background: rgba(0,229,255,0.05);
+      }
+      .export-row a .fmt {
+        display: block;
+        font-family: "JetBrains Mono", monospace;
+        color: var(--accent);
+        font-size: 11px;
+        letter-spacing: 1px;
+        margin-top: 4px;
+      }
+
+      @media (max-width: 700px) {
+        .page-title { font-size: 30px; }
+        .item { flex-direction: column; align-items: stretch; }
+        .form-row { flex-direction: column; }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/" class="nav-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+        CloudPath
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        {% if current_user.is_authenticated %}
+          <a href="/connect">Connect</a>
+          <a href="/app">Scanner</a>
+          <a href="/rules">Rules</a>
+          <a href="/history">History</a>
+          {% if current_user.subscription_tier == 'max' %}
+            <a href="/api-management" class="active">API</a>
+          {% endif %}
+          <a href="/docs">Docs</a>
+          <a href="/billing" class="plan-badge plan-{{ current_user.subscription_tier }}">
+            {{ current_user.subscription_tier|upper }}
+          </a>
+          <a href="/logout" class="nav-cta">Logout</a>
+        {% else %}
+          <a href="/login" class="nav-cta">Sign in</a>
+        {% endif %}
+      </div>
+    </nav>
+
+    <div class="wrap">
+      <div class="page-tag">API &amp; Integrations · Max tier</div>
+      <div class="page-title">
+        Automate CloudPath <span class="grad">into your workflow.</span>
+      </div>
+      <div class="page-sub">
+        Issue API keys, register webhooks, and export compliance data.
+        Everything on this page is scoped to your account only.
+      </div>
+
+      {% if current_user.subscription_tier != 'max' %}
+        <div class="upgrade-card">
+          <h2>Max tier required</h2>
+          <p>
+            REST API access, webhooks, and compliance export are Max-tier
+            features. You're currently on
+            <strong>{{ current_user.subscription_tier|capitalize }}</strong>.
+          </p>
+          <a href="/billing">Upgrade to Max</a>
+        </div>
+      {% else %}
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="keys">API Keys</button>
+        <button class="tab" data-tab="webhooks">Webhooks</button>
+        <button class="tab" data-tab="export">Export</button>
+        <button class="tab" data-tab="docs">Documentation</button>
+      </div>
+
+      <!-- API Keys panel -->
+      <div class="tab-panel active" id="panel-keys">
+        <div class="card">
+          <h3>Create a new API key</h3>
+          <div class="card-sub">
+            Keys never expire but can be revoked at any time. You'll see
+            the key value only once — copy it now.
+          </div>
+          <div class="form-row">
+            <input type="text" id="new-key-name" placeholder="Key name (e.g. 'CI production')" maxlength="100" />
+            <button class="btn primary" onclick="createKey()">Generate key</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Your keys</h3>
+          <div class="card-sub">Newest first. Revoked keys stay listed for audit.</div>
+          <div class="item-list" id="keys-list">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Webhooks panel -->
+      <div class="tab-panel" id="panel-webhooks">
+        <div class="card">
+          <h3>Register a webhook</h3>
+          <div class="card-sub">
+            CloudPath will POST a signed JSON payload to your URL when
+            the selected events happen. Signature is in the
+            <code>X-CloudPath-Signature</code> header (HMAC-SHA256).
+          </div>
+          <div class="form-row">
+            <input type="url" id="new-hook-url" placeholder="https://your-app.com/hooks/cloudpath" />
+          </div>
+          <div class="events-checkboxes">
+            <label>
+              <input type="checkbox" value="scan.completed" checked />
+              scan.completed
+            </label>
+            <label>
+              <input type="checkbox" value="finding.critical" checked />
+              finding.critical
+            </label>
+          </div>
+          <button class="btn primary" onclick="createWebhook()">Register webhook</button>
+        </div>
+
+        <div class="card">
+          <h3>Your webhooks</h3>
+          <div class="card-sub">Delivery is async. Failed deliveries increment the failure count.</div>
+          <div class="item-list" id="webhooks-list">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export panel -->
+      <div class="tab-panel" id="panel-export">
+        <div class="card">
+          <h3>Compliance export</h3>
+          <div class="card-sub">
+            Download the current attack paths for the last successful scan.
+            Uses your session — no API key needed.
+          </div>
+          <div class="export-row">
+            <a href="/exports/paths.csv"
+               download
+               id="export-csv-link">
+              Attack paths as CSV<br>
+              <span class="fmt">/exports/paths.csv</span>
+            </a>
+            <a href="/exports/paths.json"
+               download
+               id="export-json-link">
+              Attack paths as JSON<br>
+              <span class="fmt">/exports/paths.json</span>
+            </a>
+          </div>
+          <p style="color: var(--dim); font-size: 12px; margin-top: 14px;">
+            Note: for programmatic access from your own code, use the API
+            endpoints <code>/api/v1/exports/paths.csv</code> or
+            <code>/api/v1/exports/paths.json</code> with an
+            <code>Authorization: Bearer cpk_...</code> header.
+          </p>
+        </div>
+      </div>
+
+      <!-- Docs panel -->
+      <div class="tab-panel" id="panel-docs">
+        <div class="card">
+          <h3>Authentication</h3>
+          <div class="doc-block">
+            All API v1 endpoints require an API key in the
+            <code>Authorization</code> header:
+            <pre>Authorization: Bearer cpk_a1b2c3d4e5f6...</pre>
+            Keys are tied to your account and inherit your Max-tier
+            permissions. Revoked keys reject with 401.
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Endpoints</h3>
+
+          <div class="doc-block">
+            <span class="method get">GET</span>
+            <code>/api/v1/whoami</code>
+            <p style="margin-top: 8px; color: var(--dim); font-size: 13px;">
+              Verify the key is valid. Returns your user id, email, and tier.
+            </p>
+          </div>
+
+          <div class="doc-block">
+            <span class="method get">GET</span>
+            <code>/api/v1/scans?limit=20</code>
+            <p style="margin-top: 8px; color: var(--dim); font-size: 13px;">
+              Past scan runs, newest first. <code>limit</code> up to 100.
+            </p>
+          </div>
+
+          <div class="doc-block">
+            <span class="method get">GET</span>
+            <code>/api/v1/scans/latest</code>
+            <p style="margin-top: 8px; color: var(--dim); font-size: 13px;">
+              Convenience — the most recent scan with KPIs.
+            </p>
+          </div>
+
+          <div class="doc-block">
+            <span class="method post">POST</span>
+            <code>/api/v1/scans</code>
+            <p style="margin-top: 8px; color: var(--dim); font-size: 13px;">
+              Trigger a new full-pipeline scan. Returns 202 with
+              <code>job_id</code> and a <code>poll_url</code>.
+            </p>
+          </div>
+
+          <div class="doc-block">
+            <span class="method get">GET</span>
+            <code>/api/v1/attack-paths</code>
+            <p style="margin-top: 8px; color: var(--dim); font-size: 13px;">
+              Current attack paths from your latest ingested state. Same
+              data as the Scanner graph.
+            </p>
+          </div>
+
+          <div class="doc-block">
+            <span class="method get">GET</span>
+            <code>/api/v1/exports/paths.csv</code> and
+            <code>/api/v1/exports/paths.json</code>
+            <p style="margin-top: 8px; color: var(--dim); font-size: 13px;">
+              Downloadable exports of the current attack paths.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Webhook payloads</h3>
+          <div class="doc-block">
+            Each event delivers a JSON envelope like this:
+            <pre>{
+  "event": "scan.completed",
+  "event_id": "e2fef8f4-9c1b-4c...",
+  "created_at": 1720000000,
+  "data": {
+    "scan_type": "manual",
+    "total_paths": 3,
+    "critical": 0,
+    "high": 1,
+    "medium": 2,
+    "low": 0,
+    "paths_preview": [ { "title": "…", "severity": "High", "score": 7.4 } ]
+  }
+}</pre>
+            Verify the signature with:
+            <pre>expected = "sha256=" + hmac_sha256(secret, raw_body).hex()
+constant_time_equal(expected, request.headers["X-CloudPath-Signature"])</pre>
+          </div>
+        </div>
+      </div>
+
+      {% endif %}
+    </div>
+
+    <!-- Reveal-once modal for new keys -->
+    <div class="modal-backdrop" id="keyModal">
+      <div class="modal">
+        <h3>Your new API key</h3>
+        <p>Copy this now — you won't be able to see it again after closing.</p>
+        <div class="key-display" id="key-value"></div>
+        <div class="warning">
+          ⚠ Store this in your secrets manager. Anyone with this key can
+          call the API as you.
+        </div>
+        <div class="actions">
+          <button class="btn" onclick="copyKey()">Copy</button>
+          <button class="btn primary" onclick="closeKeyModal()">I've saved it</button>
+        </div>
+      </div>
+    </div>
+
+    {% if current_user.subscription_tier == 'max' %}
+    <script>
+      // ---------- Tabs ----------
+      document.querySelectorAll(".tab").forEach(t => {
+        t.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+          document.querySelectorAll(".tab-panel").forEach(x => x.classList.remove("active"));
+          t.classList.add("active");
+          document.getElementById("panel-" + t.dataset.tab).classList.add("active");
+        });
+      });
+
+      // ---------- Helpers ----------
+      function fmtDate(iso) {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        return d.toLocaleString(undefined, {
+          year: "numeric", month: "short", day: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        });
+      }
+
+      // ---------- API Keys ----------
+      async function loadKeys() {
+        const list = document.getElementById("keys-list");
+        try {
+          const res = await fetch("/api/keys");
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.message || "load failed");
+          if (!data.keys.length) {
+            list.innerHTML = '<div class="empty-state">No keys yet. Generate one above to get started.</div>';
+            return;
+          }
+          list.innerHTML = data.keys.map(k => {
+            const revoked = !!k.revoked_at;
+            const nameEsc = k.name.replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+            return `
+              <div class="item ${revoked ? 'revoked' : ''}">
+                <div class="item-main">
+                  <div class="item-name">${nameEsc}</div>
+                  <div class="item-meta">
+                    ${k.key_prefix}…  ·  created ${fmtDate(k.created_at)}
+                    ${k.last_used_at ? ' · last used ' + fmtDate(k.last_used_at) : ' · never used'}
+                  </div>
+                  <div class="item-badges">
+                    <span class="mini-badge ${revoked ? 'status-revoked' : 'status-active'}">
+                      ${revoked ? 'REVOKED' : 'ACTIVE'}
+                    </span>
+                  </div>
+                </div>
+                ${revoked ? '' : `<button class="btn danger" onclick="revokeKey(${k.id})">Revoke</button>`}
+              </div>
+            `;
+          }).join("");
+        } catch (e) {
+          list.innerHTML = `<div class="empty-state" style="color: var(--danger);">Error: ${e.message}</div>`;
+        }
+      }
+
+      async function createKey() {
+        const nameInput = document.getElementById("new-key-name");
+        const name = nameInput.value.trim() || "Untitled key";
+        try {
+          const res = await fetch("/api/keys", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.message || "create failed");
+          nameInput.value = "";
+          openKeyModal(data.key.key);
+          loadKeys();
+        } catch (e) {
+          alert("Could not create key: " + e.message);
+        }
+      }
+
+      async function revokeKey(id) {
+        if (!confirm("Revoke this API key? Anything using it will lose access immediately.")) return;
+        try {
+          const res = await fetch("/api/keys/" + id, { method: "DELETE" });
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.message || "revoke failed");
+          loadKeys();
+        } catch (e) {
+          alert("Could not revoke key: " + e.message);
+        }
+      }
+
+      let _newKeyValue = "";
+      function openKeyModal(keyValue) {
+        _newKeyValue = keyValue;
+        document.getElementById("key-value").textContent = keyValue;
+        document.getElementById("keyModal").classList.add("open");
+      }
+      function closeKeyModal() {
+        document.getElementById("keyModal").classList.remove("open");
+        _newKeyValue = "";
+      }
+      function copyKey() {
+        navigator.clipboard.writeText(_newKeyValue).then(() => {
+          const btns = document.querySelectorAll(".modal .btn");
+          btns[0].textContent = "Copied!";
+          setTimeout(() => btns[0].textContent = "Copy", 1500);
+        });
+      }
+
+      // ---------- Webhooks ----------
+      async function loadWebhooks() {
+        const list = document.getElementById("webhooks-list");
+        try {
+          const res = await fetch("/api/webhooks");
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.message || "load failed");
+          if (!data.webhooks.length) {
+            list.innerHTML = '<div class="empty-state">No webhooks registered.</div>';
+            return;
+          }
+          list.innerHTML = data.webhooks.map(w => {
+            const urlEsc = w.url.replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+            const eventBadges = (w.events || []).map(
+              e => `<span class="mini-badge event">${e}</span>`
+            ).join("");
+            const statusBadge = w.active
+              ? '<span class="mini-badge status-active">ACTIVE</span>'
+              : '<span class="mini-badge status-inactive">INACTIVE</span>';
+            const lastLine = w.last_success_at
+              ? `last delivery ${fmtDate(w.last_success_at)}`
+              : (w.last_failure_at
+                  ? `last failure ${fmtDate(w.last_failure_at)}${w.failure_count ? ' (' + w.failure_count + ' consec)' : ''}`
+                  : 'no deliveries yet');
+            return `
+              <div class="item">
+                <div class="item-main">
+                  <div class="item-name">${urlEsc}</div>
+                  <div class="item-meta">
+                    created ${fmtDate(w.created_at)} · ${lastLine}
+                  </div>
+                  <div class="item-badges">${statusBadge}${eventBadges}</div>
+                </div>
+                <button class="btn danger" onclick="deleteWebhook(${w.id})">Delete</button>
+              </div>
+            `;
+          }).join("");
+        } catch (e) {
+          list.innerHTML = `<div class="empty-state" style="color: var(--danger);">Error: ${e.message}</div>`;
+        }
+      }
+
+      async function createWebhook() {
+        const urlInput = document.getElementById("new-hook-url");
+        const url = urlInput.value.trim();
+        if (!url) { alert("Please enter a webhook URL."); return; }
+        const events = Array.from(
+          document.querySelectorAll("#panel-webhooks .events-checkboxes input:checked")
+        ).map(cb => cb.value);
+        try {
+          const res = await fetch("/api/webhooks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url, events }),
+          });
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.message || "create failed");
+          urlInput.value = "";
+          alert("Webhook registered. Secret (save it):\n\n" + data.webhook.secret);
+          loadWebhooks();
+        } catch (e) {
+          alert("Could not create webhook: " + e.message);
+        }
+      }
+
+      async function deleteWebhook(id) {
+        if (!confirm("Delete this webhook? CloudPath will stop delivering events to it.")) return;
+        try {
+          const res = await fetch("/api/webhooks/" + id, { method: "DELETE" });
+          const data = await res.json();
+          if (data.status !== "ok") throw new Error(data.message || "delete failed");
+          loadWebhooks();
+        } catch (e) {
+          alert("Could not delete webhook: " + e.message);
+        }
+      }
+
+      // Export links use session auth automatically (browser sends cookie).
+      // The /exports/* endpoints are session-authenticated wrappers around
+      // /api/v1/exports/* — so no key needed for the UI buttons.
+
+      // Initial load
+      loadKeys();
+      loadWebhooks();
+    </script>
+    {% endif %}
+  </body>
+</html>

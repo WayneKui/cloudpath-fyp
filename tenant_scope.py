@@ -22,14 +22,6 @@ Why a post-pass tagger (not inline modifications to ingestors):
   - Reversible: a buggy tag can be re-run or rolled back; an inline
     bug means hunting through ~1500 lines of ingestor code.
 
-Honest limitations documented in the report:
-  - Time-fence approach only works when one scan runs at a time. We
-    enforce this with PIPELINE_LOCK in app.py. Real production
-    multi-tenant CNAPPs use a per-scan sync_tag column instead.
-  - If a resource exists in two users' AWS accounts (rare in practice;
-    impossible in FYP demo setup), the second scan's tagger overwrites
-    the first user's tenant_id. Acceptable for FYP scope.
-
 Timestamp convention:
   Cartography uses Neo4j's `timestamp()` function, which returns
   milliseconds since epoch as an INTEGER. We use the same convention
@@ -60,22 +52,6 @@ def scan_start_timestamp_ms() -> int:
 
 def ensure_tenant_index() -> None:
     """Ensure indexes exist for the tenant_id property.
-
-    Honest implementation note: Neo4j Community Edition (and Neo4j
-    in general) does not support a single "label-agnostic" index on
-    a property. We'd need one index per label — ~50 indexes for the
-    CloudPath schema. For FYP scale (graphs under 10K nodes), the
-    post-pass tagger query (~531 nodes in dev) runs in <100ms even
-    without an index. We therefore skip index creation entirely and
-    rely on Neo4j's default node scan.
-
-    Documented in the report as a future optimization: if the graph
-    grows beyond ~100K nodes, create per-label tenant_id indexes for
-    the most-queried labels (EC2Instance, S3Bucket, GCPInstance,
-    GCPBucket, Finding, etc.).
-
-    This function is kept as a public API for symmetry with future
-    versions that might use per-label indexes; for now it's a no-op.
     """
     return  # intentional no-op for FYP scope
 
@@ -103,6 +79,12 @@ def tag_tenant_nodes(tenant_id: int, scan_start_ms: int) -> dict:
 
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
     summary = {"total_tagged": 0, "by_label": {}}
+    # Cartography writes `lastupdated` in inconsistent units:
+    #   - most modules use SECONDS (10-digit unix timestamp)
+    #   - some newer modules use MILLISECONDS (13-digit)
+    # Our scan_start is captured in milliseconds.
+    scan_start_s = scan_start_ms // 1000
+    SCALE_THRESHOLD = 100_000_000_000  # 10^11
     try:
         with driver.session() as session:
             # Single bulk update for performance. The WHERE clause
@@ -112,12 +94,18 @@ def tag_tenant_nodes(tenant_id: int, scan_start_ms: int) -> dict:
                 """
                 MATCH (n)
                 WHERE n.lastupdated IS NOT NULL
-                  AND n.lastupdated >= $scan_start
+                  AND (
+                       (n.lastupdated >= $scale_threshold AND n.lastupdated >= $scan_start_ms)
+                    OR (n.lastupdated <  $scale_threshold AND n.lastupdated >= $scan_start_s)
+                  )
                   AND n.tenant_id IS NULL
                 SET n.tenant_id = $tid
                 RETURN labels(n) AS lbls, count(n) AS n
                 """,
-                tid=tenant_id, scan_start=scan_start_ms,
+                tid=tenant_id,
+                scan_start_ms=scan_start_ms,
+                scan_start_s=scan_start_s,
+                scale_threshold=SCALE_THRESHOLD,
             )
             for record in result:
                 labels = record["lbls"] or ["<no_label>"]
@@ -136,10 +124,6 @@ def backfill_existing_nodes(default_tenant_id: int) -> dict:
     """One-time migration: assign every untagged node in the graph to
     default_tenant_id. Idempotent — safe to re-run; only nodes still
     without a tenant_id get tagged.
-
-    Use after deploying Phase 6 to handle data from before tenancy
-    existed. The intended default_tenant_id is the original test user
-    (typically user_id = 1).
     """
     if not isinstance(default_tenant_id, int) or default_tenant_id <= 0:
         raise ValueError("default_tenant_id must be a positive int")
