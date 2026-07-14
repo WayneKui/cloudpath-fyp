@@ -4,6 +4,12 @@ import glob
 import yaml
 from neo4j import GraphDatabase
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import db
 
 NEO4J_URI = "bolt://localhost:7687"

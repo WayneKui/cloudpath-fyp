@@ -35,6 +35,12 @@ from google.api_core import exceptions as gcp_exceptions
 from google.cloud import compute_v1, storage, iam_admin_v1, resourcemanager_v3
 from google.iam.v1 import iam_policy_pb2
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 
 # ==============================================================
 # CONFIGURATION

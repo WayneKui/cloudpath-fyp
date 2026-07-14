@@ -39,6 +39,12 @@ import os
 import sys
 from neo4j import GraphDatabase
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # ---- Connection settings ----
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
