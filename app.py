@@ -40,6 +40,7 @@ import os
 import sys
 import time
 import uuid
+import shutil
 import threading
 import subprocess
 from collections import Counter, defaultdict
@@ -958,6 +959,11 @@ def dashboard_cache():
 # Full pipeline (Cartography + ingestors + Prowler + detection)
 # ============================================================
 
+_venv_bin = os.path.dirname(sys.executable)
+CARTOGRAPHY_BIN = shutil.which("cartography", path=_venv_bin) or "cartography"
+PROWLER_BIN = shutil.which("prowler", path=_venv_bin) or "prowler"
+
+
 # Definition of the full pipeline. Each entry is (step_name, command_args,
 # description). The command_args is a list passed to subprocess.run() so we
 # avoid shell injection.
@@ -983,7 +989,7 @@ def build_pipeline_steps(ctx, tenant_id):
         ])
         steps.append((
             "cartography_aws",
-            ["cartography",
+            [CARTOGRAPHY_BIN,
              "--neo4j-uri", NEO4J_URI,
              "--neo4j-user", NEO4J_USER,
              "--neo4j-password-env-var", "NEO4J_PASSWORD",
@@ -1007,7 +1013,7 @@ def build_pipeline_steps(ctx, tenant_id):
     if ctx.aws_present:
         steps.append((
             "prowler_aws",
-            ["prowler", "aws",
+            [PROWLER_BIN, "aws",
              "--output-formats", "json-ocsf",
              "--output-directory", "prowler-output",
              "--status", "FAIL"],
@@ -1016,7 +1022,7 @@ def build_pipeline_steps(ctx, tenant_id):
     if ctx.gcp_present and ctx.gcp_project_id:
         steps.append((
             "prowler_gcp",
-            ["prowler", "gcp",
+            [PROWLER_BIN, "gcp",
              "--project-id", ctx.gcp_project_id,   # from user's saved cred
              "--output-formats", "json-ocsf",
              "--output-directory", "prowler-output",
@@ -1362,29 +1368,30 @@ def pipeline_status(job_id):
     return jsonify(PIPELINE_JOB)
 
 
+# Ensure the tenant_id index exists in Neo4j. Idempotent — does
+# nothing if it already exists. Without the index, the post-pass
+# tagger does a full graph scan; with it, the tagger is fast.
+try:
+    ensure_tenant_index()
+except Exception as e:
+    print(f"[startup] tenant_id index check failed: {e}")
+    print("[startup] continuing anyway; tagger will be slower")
+
+# Start the STS auto-refresh worker. Runs as a daemon thread inside
+# this Flask process. Refreshes any AWS credentials whose STS tokens
+# are within ~10 minutes of expiring, on a 5-minute cadence.
+# The worker is a no-op until at least one AWS credential exists in
+# the database.
+start_refresh_worker()
+
+# Start the scheduled-scans background thread. Wakes every 60s,
+# finds schedules whose next_run_at has passed, fires scans for
+# those users. Plus tier feature — see scheduler.py.
+from scheduler import start_scheduler
+start_scheduler(_run_pipeline_thread, PIPELINE_JOB)
+
+
 if __name__ == "__main__":
-    # Ensure the tenant_id index exists in Neo4j. Idempotent — does
-    # nothing if it already exists. Without the index, the post-pass
-    # tagger does a full graph scan; with it, the tagger is fast.
-    try:
-        ensure_tenant_index()
-    except Exception as e:
-        print(f"[startup] tenant_id index check failed: {e}")
-        print("[startup] continuing anyway; tagger will be slower")
-
-    # Start the STS auto-refresh worker. Runs as a daemon thread inside
-    # this Flask process. Refreshes any AWS credentials whose STS tokens
-    # are within ~10 minutes of expiring, on a 5-minute cadence.
-    # The worker is a no-op until at least one AWS credential exists in
-    # the database.
-    start_refresh_worker()
-
-    # Start the scheduled-scans background thread. Wakes every 60s,
-    # finds schedules whose next_run_at has passed, fires scans for
-    # those users. Plus tier feature — see scheduler.py.
-    from scheduler import start_scheduler
-    start_scheduler(_run_pipeline_thread, PIPELINE_JOB)
-
     # threaded=True is essential: it lets Flask serve other requests
     # (page reloads, status polling) while a pipeline runs in the background.
     # Without this, the entire website freezes for the duration of the pipeline.

@@ -1,13 +1,3 @@
-# ============================================================
-# CloudPath Docker Compose — Phase 1 (PostgreSQL only)
-# ============================================================
-#
-# This file brings up ONLY the PostgreSQL container, intentionally
-# leaving your existing 'neo4j-fyp' container untouched. Both
-# databases will coexist on different ports:
-#   - Neo4j     (your existing container)  bolt://localhost:7687
-#   - PostgreSQL (this new container)      postgresql://localhost:5432
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -39,5 +29,29 @@ services:
       retries: 10
       start_period: 5s
 
+  neo4j:
+    image: neo4j:5-community
+    container_name: neo4j-fyp
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-changeme}
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP_SIZE:-512m}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_SIZE:-512m}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE_SIZE:-256m}
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
 volumes:
   postgres_data:
+  neo4j_data:
+  neo4j_logs:
