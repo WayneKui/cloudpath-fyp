@@ -58,7 +58,7 @@ Cloud access is read-only and temporary: CloudPath assumes a customer-deployed I
 
 ### Prerequisites
 - Python 3.11+
-- Docker (for PostgreSQL and Neo4j)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for PostgreSQL and Neo4j) — includes the Compose V2 plugin needed for the `docker compose` commands below; a standalone/older Docker install may not have it
 - AWS and/or GCP credentials for the accounts you want to scan
 
 ### Setup
@@ -69,14 +69,18 @@ cd cloudpath-fyp
 python -m venv venv
 venv\Scripts\activate          # Windows
 pip install -r requirements.txt
-
-docker compose -f docker-compose.postgres-only.yml up -d
-# Starts both PostgreSQL and Neo4j containers.
 ```
 
 Copy `.env.example` to `.env` and fill in at minimum `CLOUDPATH_ENCRYPTION_KEY`, `CLOUDPATH_DB_DSN`/`POSTGRES_PASSWORD` (must match), `FLASK_SECRET_KEY`, and `NEO4J_PASSWORD` — everything else has a local-dev default or is optional (billing). AWS credentials for the scanner's own AWS calls come from the standard AWS credential chain (env vars, `~/.aws/credentials`, or an IAM instance role), not from `.env`. See `.env.example` for the full list with generation commands and explanations.
 
-If you change `POSTGRES_PASSWORD` or `NEO4J_PASSWORD` after the containers already exist with old values, wipe the volumes so they pick up the new ones: `docker compose -f docker-compose.postgres-only.yml down -v` (destroys existing data — only needed on first setup or if you're starting over).
+Do this **before** starting the containers below — `POSTGRES_PASSWORD` and `NEO4J_PASSWORD` are only applied the first time each container is created, so `.env` needs to exist with your real values already in it first.
+
+```bash
+docker compose -f docker-compose.postgres-only.yml up -d
+# Starts both PostgreSQL and Neo4j containers.
+```
+
+If you ever change `POSTGRES_PASSWORD` or `NEO4J_PASSWORD` after the containers already exist, they won't pick up the new value automatically — wipe the volumes so they get recreated with it: `docker compose -f docker-compose.postgres-only.yml down -v` (destroys existing data).
 
 Apply the database schema and migrations:
 
