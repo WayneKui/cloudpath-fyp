@@ -71,16 +71,17 @@ venv\Scripts\activate          # Windows
 pip install -r requirements.txt
 
 docker compose -f docker-compose.postgres-only.yml up -d
-# Run a Neo4j container alongside it (see docker docs for your platform)
+# Starts both PostgreSQL and Neo4j containers.
 ```
 
-Copy `.env.example` to `.env` and fill in at minimum `CLOUDPATH_ENCRYPTION_KEY`, `CLOUDPATH_DB_DSN`, and `FLASK_SECRET_KEY` — everything else has a local-dev default or is optional (billing). AWS credentials for the scanner's own AWS calls come from the standard AWS credential chain (env vars, `~/.aws/credentials`, or an IAM instance role), not from `.env`. See `.env.example` for the full list with explanations.
+Copy `.env.example` to `.env` and fill in at minimum `CLOUDPATH_ENCRYPTION_KEY`, `CLOUDPATH_DB_DSN`/`POSTGRES_PASSWORD` (must match), `FLASK_SECRET_KEY`, and `NEO4J_PASSWORD` — everything else has a local-dev default or is optional (billing). AWS credentials for the scanner's own AWS calls come from the standard AWS credential chain (env vars, `~/.aws/credentials`, or an IAM instance role), not from `.env`. See `.env.example` for the full list with generation commands and explanations.
+
+If you change `POSTGRES_PASSWORD` or `NEO4J_PASSWORD` after the containers already exist with old values, wipe the volumes so they pick up the new ones: `docker compose -f docker-compose.postgres-only.yml down -v` (destroys existing data — only needed on first setup or if you're starting over).
 
 Apply the database schema and migrations:
 
 ```bash
-docker exec -i <postgres-container> psql -U cloudpath -d cloudpath < schema.sql
-for f in migration_*.sql; do docker exec -i <postgres-container> psql -U cloudpath -d cloudpath < "$f"; done
+python migrations/run_migrations.py
 ```
 
 Run it:
@@ -90,6 +91,29 @@ python app.py
 ```
 
 Visit `http://localhost:5000`, register an account, and follow the Connect page to link an AWS role or GCP service account.
+
+### Setting up the scanner's own AWS identity
+
+To actually connect and scan an AWS account (as opposed to just running the site), the machine running CloudPath needs its own AWS identity that's allowed to call `sts:AssumeRole` — this is what shows up as `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` above. Create a dedicated IAM user for this rather than reusing broad/root credentials:
+
+1. AWS Console → IAM → Users → Create user, programmatic access only.
+2. Attach an inline policy allowing only `sts:AssumeRole`:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{"Effect": "Allow", "Action": "sts:AssumeRole", "Resource": "*"}]
+   }
+   ```
+3. Generate an access key for that user and put it in your shell environment (or `~/.aws/credentials`) — this user can never do anything in AWS except assume roles that explicitly trust it, so it's safe to use even for a throwaway/testing setup.
+4. In a separate AWS account (or the same one, for local testing), deploy `cloudformation/cloudpath-scanrole.yaml` to create the customer-side role that trusts this scanner identity.
+
+### Testing billing without real payments
+
+Use a LemonSqueezy **test-mode** store (Settings → toggle Test Mode) and its test-mode API key/webhook secret in `.env` — checkouts complete with no real money moving, and the webhook flow behaves identically to live mode.
+
+### Testing webhooks locally
+
+The webhook delivery flow (Max tier, `/api/billing/webhook` and your own registered webhooks) needs a public HTTPS URL to receive callbacks, since LemonSqueezy and your own webhook targets can't reach `localhost`. Use a tunnel like ngrok (`ngrok http 5000`) and use the resulting `https://...ngrok-free.app` URL wherever a webhook URL is required.
 
 ## How to use CloudPath
 
