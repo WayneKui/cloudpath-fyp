@@ -580,6 +580,25 @@
         <div class="step">
           <div class="step-head">
             <div class="step-num">1</div>
+            <div class="step-title">Enable required APIs</div>
+          </div>
+          <div class="step-body">
+            <p>
+              Before creating a service account, enable these APIs in your GCP project:
+              Cloud Resource Manager, IAM, Compute Engine, Cloud Storage, Cloud SQL Admin,
+              Kubernetes Engine, and Cloud Logging. Enable them at the API Library
+              (console.cloud.google.com/apis/library, with your project selected), or run this in Cloud Shell:
+            </p>
+            <div class="code-box" id="gcp-apis-cmd">
+              gcloud services enable cloudresourcemanager.googleapis.com iam.googleapis.com
+              compute.googleapis.com storage.googleapis.com sqladmin.googleapis.com
+              container.googleapis.com logging.googleapis.com --project=YOUR_PROJECT_ID<button class="copy-btn" onclick="copyText('gcp-apis-cmd', this)">copy</button>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-head">
+            <div class="step-num">2</div>
             <div class="step-title">Create a read-only service account</div>
           </div>
           <div class="step-body">
@@ -596,7 +615,7 @@
         </div>
         <div class="step">
           <div class="step-head">
-            <div class="step-num">2</div>
+            <div class="step-num">3</div>
             <div class="step-title">Upload your key &amp; project ID</div>
           </div>
           <div class="step-body">
